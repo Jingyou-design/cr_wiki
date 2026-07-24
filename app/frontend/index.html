@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="创然公司 Wiki 资料上传与初始化测试台"
+    />
+    <title>创然 Wiki · 管理控制台</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260724" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="返回初始化控制台">
+          <span class="brand-mark" aria-hidden="true">CR</span>
+          <span>
+            <strong>创然 Wiki</strong>
+            <small>管理控制台</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="environment-chip">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            本地测试环境
+          </span>
+          <a class="text-link" href="/docs" target="_blank" rel="noreferrer">
+            API 文档
+          </a>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">KNOWLEDGE BASE SETUP</p>
+            <h1>把公司资料变成<br />可检索的 Wiki</h1>
+            <p class="hero-copy">
+              上传整理后的公司资料包，系统会自动调用 Deep Agent
+              按原目录生成一源一页的 Wiki 草稿。
+            </p>
+          </div>
+          <aside class="status-card" aria-live="polite">
+            <div class="status-card-head">
+              <span>当前知识库</span>
+              <button
+                class="icon-button"
+                id="refreshStatusButton"
+                type="button"
+                aria-label="重新检查知识库状态"
+                title="重新检查"
+              >
+                ↻
+              </button>
+            </div>
+            <div class="status-main">
+              <span class="status-orb is-loading" id="statusOrb"></span>
+              <div>
+                <strong id="statusTitle">正在检查</strong>
+                <p id="statusMessage">正在扫描服务器中的 Wiki 文件。</p>
+              </div>
+            </div>
+            <dl class="status-stats">
+              <div>
+                <dt>公司资料</dt>
+                <dd id="sourceFileCount">—</dd>
+              </div>
+              <div>
+                <dt>Wiki 页面</dt>
+                <dd id="wikiPageCount">—</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+
+        <section class="workflow" aria-label="Wiki 初始化流程">
+          <article class="step-card" id="uploadCard">
+            <div class="step-heading">
+              <span class="step-number">01</span>
+              <div>
+                <p class="step-label">生成知识库</p>
+                <h2>上传资料并生成 Wiki</h2>
+              </div>
+              <span class="step-state is-locked" id="uploadStepState">
+                检查中
+              </span>
+            </div>
+
+            <div
+              class="drop-zone"
+              id="dropZone"
+              role="button"
+              tabindex="0"
+              aria-label="选择或拖入公司资料 ZIP"
+            >
+              <input
+                id="sourceFile"
+                type="file"
+                accept=".zip,application/zip"
+                hidden
+              />
+              <span class="upload-symbol" aria-hidden="true">↑</span>
+              <strong id="dropTitle">拖入 ZIP，或点击选择文件</strong>
+              <p id="dropHint">
+                支持 PDF、Word、Excel、PPT、图片及常见文本格式
+              </p>
+              <div class="selected-file" id="selectedFile" hidden>
+                <span class="file-type">ZIP</span>
+                <span>
+                  <strong id="selectedFileName"></strong>
+                  <small id="selectedFileSize"></small>
+                </span>
+              </div>
+            </div>
+
+            <div class="upload-options">
+              <label class="field">
+                <span>
+                  内容提炼重点
+                  <em>必填</em>
+                </span>
+                <input
+                  id="scopeInput"
+                  name="scope"
+                  type="text"
+                  minlength="1"
+                  maxlength="200"
+                  placeholder="例如：全部公司资料"
+                  required
+                />
+                <small>系统仍会处理全部文件；这里用于告诉 Agent 哪类信息要重点突出。</small>
+              </label>
+
+              <label class="field">
+                <span>补充要求 <i>可选</i></span>
+                <textarea
+                  id="messageInput"
+                  name="message"
+                  maxlength="2000"
+                  rows="4"
+                  placeholder="例如：重点整理考勤、请假和入离职流程"
+                ></textarea>
+              </label>
+
+            </div>
+
+            <div class="card-actions">
+              <p class="action-note">
+                上传后会自动转换资料并生成 Wiki，可能需要几分钟，请勿重复提交。
+              </p>
+              <button
+                class="primary-button"
+                id="uploadButton"
+                type="button"
+                disabled
+              >
+                <span>上传并生成 Wiki</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </article>
+
+        </section>
+
+        <section class="result-section" id="resultSection" aria-live="polite">
+          <div class="result-heading">
+            <div>
+              <p class="eyebrow">RUN STATUS</p>
+              <h2>运行结果</h2>
+            </div>
+            <span class="result-badge is-idle" id="resultBadge">等待操作</span>
+          </div>
+
+          <div class="empty-result" id="emptyResult">
+            <span aria-hidden="true">⌁</span>
+            <p>上传、更新或问答的执行结果会显示在这里。</p>
+          </div>
+
+          <div class="result-content" id="resultContent" hidden>
+            <div class="result-summary" id="resultSummary"></div>
+            <div class="validation-grid" id="validationGrid" hidden></div>
+            <details class="raw-response">
+              <summary>查看原始 JSON</summary>
+              <pre id="rawResponse"></pre>
+            </details>
+          </div>
+        </section>
+
+        <section class="update-section" aria-labelledby="updateTitle">
+          <div class="update-heading">
+            <div>
+              <p class="eyebrow">INCREMENTAL UPDATE</p>
+              <h2 id="updateTitle">增量更新 Wiki</h2>
+              <p>
+                检测 company-handbook 的内容变化，只维护引用了变更资料的页面。
+              </p>
+            </div>
+            <button
+              class="secondary-button"
+              id="refreshChangesButton"
+              type="button"
+            >
+              检测资料变化
+            </button>
+          </div>
+
+          <div class="update-grid">
+            <div class="change-panel" aria-live="polite">
+              <span class="step-state is-locked" id="updateStepState">
+                尚未检测
+              </span>
+              <strong id="updateChangeTitle">等待检测资料变化</strong>
+              <p id="updateChangeSummary">
+                修改 company-handbook 中的资料后，点击“检测资料变化”。
+              </p>
+              <dl class="change-stats">
+                <div>
+                  <dt>新增</dt>
+                  <dd id="addedCount">—</dd>
+                </div>
+                <div>
+                  <dt>修改</dt>
+                  <dd id="modifiedCount">—</dd>
+                </div>
+                <div>
+                  <dt>删除</dt>
+                  <dd id="deletedCount">—</dd>
+                </div>
+              </dl>
+            </div>
+
+            <form id="updateForm" class="update-form">
+              <label class="field">
+                <span>本次更新要求 <i>可选</i></span>
+                <textarea
+                  id="updateMessage"
+                  maxlength="2000"
+                  rows="4"
+                  placeholder="例如：重点核对被修改制度中的金额、日期和审批流程"
+                ></textarea>
+              </label>
+              <div class="card-actions">
+                <p class="action-note">
+                  无变化时不会调用模型；校验失败会自动恢复更新前草稿。
+                </p>
+                <button
+                  class="primary-button"
+                  id="updateButton"
+                  type="submit"
+                  disabled
+                >
+                  <span>更新受影响页面</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="chat-section" aria-labelledby="chatTitle">
+          <div class="chat-heading">
+            <div>
+              <p class="eyebrow">KNOWLEDGE CHAT</p>
+              <h2 id="chatTitle">向公司知识库提问</h2>
+              <p>
+                Agent 会先沿目录索引检索 Wiki，必要时核对原文，并列出实际使用的页面。
+              </p>
+            </div>
+            <button
+              class="secondary-button"
+              id="newChatButton"
+              type="button"
+              disabled
+            >
+              新建会话
+            </button>
+          </div>
+
+          <div class="chat-grid">
+            <form id="chatForm" class="chat-form">
+              <label class="field">
+                <span>你的问题</span>
+                <textarea
+                  id="chatQuestion"
+                  maxlength="2000"
+                  rows="5"
+                  placeholder="例如：公司报销日是哪几天？需要走什么审批流程？"
+                  required
+                  disabled
+                ></textarea>
+              </label>
+              <div class="chat-actions">
+                <small id="chatConversationLabel">尚未开始会话</small>
+                <button
+                  class="primary-button"
+                  id="chatButton"
+                  type="submit"
+                  disabled
+                >
+                  <span>提交问题</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="chat-answer" id="chatAnswer" aria-live="polite">
+              <div class="chat-answer-empty" id="chatAnswerEmpty">
+                <span aria-hidden="true">?</span>
+                <p>Wiki 初始化并与资料同步后，可以在这里测试公司知识问答。</p>
+              </div>
+              <div id="chatAnswerContent" hidden>
+                <p class="chat-answer-label">知识库回答</p>
+                <div class="chat-answer-text" id="chatAnswerText"></div>
+                <div class="chat-source-list" id="chatSourceList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="notice">
+          <span class="notice-mark" aria-hidden="true">!</span>
+          <div>
+            <strong>当前接口尚未接入身份验证</strong>
+            <p>
+              这个页面仅用于本地开发测试。部署到公网前，需要为上传、初始化和更新接口增加管理员认证。
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>CR Wiki · Deep Agents Prototype</span>
+      </footer>
+    </div>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+    <script src="/assets/app.js?v=20260724" defer></script>
+  </body>
+</html>

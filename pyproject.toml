@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chuangran-company-wiki"
+version = "0.1.0"
+description = "A Deep Agents based company Wiki generator"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "deepagents>=0.6.12,<0.7",
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "langchain-deepseek>=1.1,<2",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "python-dotenv>=1.1,<2",
+  "python-multipart>=0.0.20,<1",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

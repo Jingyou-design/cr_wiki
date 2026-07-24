@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv/
+.uv-cache/
+.pytest_cache/
+.source-jobs/
+.source-processing-*/
+.tmp*.log
+data/
+company-handbook/
+generated-wiki/
+__pycache__/
+*.py[cod]
