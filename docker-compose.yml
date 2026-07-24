@@ -9,7 +9,7 @@ services:
     environment:
       WIKI_PROJECT_ROOT: /data
     ports:
-      - "${WIKI_PORT:-8000}:8000"
+      - "8002:8000"
     volumes:
       - ./data:/data
     healthcheck:
