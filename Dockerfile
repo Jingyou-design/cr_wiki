@@ -1,11 +1,17 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+ARG UV_DEFAULT_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
+RUN python -m pip install \
+    --no-cache-dir \
+    --index-url "${UV_DEFAULT_INDEX}" \
+    "uv==0.11.8"
 
 ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    UV_DEFAULT_INDEX=${UV_DEFAULT_INDEX}
 
 WORKDIR /app
 
