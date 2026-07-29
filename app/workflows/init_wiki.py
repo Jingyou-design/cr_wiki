@@ -7,7 +7,6 @@ import shutil
 from typing import Any
 
 from app.api.schema import InitWikiResponse, WorkflowContext
-from app.config.runtime import validate_layout
 
 from app.prompt.loader import create_user_prompt
 from app.tools.wiki_validator import validate_tree
@@ -23,13 +22,7 @@ class WorkflowExecutionError(RuntimeError):
     """Raised when the Agent fails during the init workflow."""
 
 
-def run_init(
-    context: WorkflowContext,
-    *,
-    scope: str,
-    message: str | None,
-) -> InitWikiResponse:
-    validate_layout(context)
+def run_init(context: WorkflowContext) -> InitWikiResponse:
     draft_root = context.project_root / "generated-wiki" / "drafts"
     if draft_root.is_dir() and any(draft_root.iterdir()):
         raise WikiAlreadyInitializedError(
@@ -45,8 +38,6 @@ def run_init(
             ensure_ascii=False,
             indent=2,
         ),
-        scope=scope,
-        user_message=message,
     )
     plan_path = context.project_root / "generated-wiki" / "_plan.json"
     try:

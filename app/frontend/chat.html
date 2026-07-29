@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="创然公司部门知识助手"
+    />
+    <title>部门知识助手 · 创然 Wiki</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260728-2" />
+  </head>
+  <body class="is-employee">
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/chat" aria-label="返回部门知识助手">
+          <span class="brand-mark" aria-hidden="true">CR</span>
+          <span>
+            <strong>创然 Wiki</strong>
+            <small>部门知识助手</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="user-chip" id="userChip"></span>
+          <button class="text-button" id="logoutButton" type="button">
+            退出登录
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="chat-section" id="chatSection" aria-label="部门知识问答">
+          <div class="chat-heading">
+            <div>
+              <p class="eyebrow">KNOWLEDGE CHAT</p>
+              <h1>向公司知识库提问</h1>
+            </div>
+          </div>
+
+          <div class="chat-grid">
+            <form id="chatForm" class="chat-form">
+              <label class="field">
+                <span>你的问题</span>
+                <textarea
+                  id="chatQuestion"
+                  maxlength="2000"
+                  rows="1"
+                  placeholder="输入问题，Enter 发送，Shift + Enter 换行"
+                  required
+                  disabled
+                ></textarea>
+              </label>
+              <div class="chat-actions">
+                <button
+                  class="primary-button"
+                  id="chatButton"
+                  type="submit"
+                  disabled
+                >
+                  <span>发送</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="chat-answer" id="chatAnswer" aria-live="polite">
+              <div class="chat-answer-empty" id="chatAnswerEmpty">
+                <div class="chat-empty-card">
+                  <span class="chat-empty-icon" aria-hidden="true">✦</span>
+                  <strong>从公司知识中找到答案</strong>
+                  <p>输入制度、流程或业务问题，回答将在这里实时生成。</p>
+                </div>
+              </div>
+              <div id="chatAnswerContent" hidden>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-source-list" id="chatSourceList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+    <script type="module" src="/assets/js/chat-page.js?v=20260728-2"></script>
+  </body>
+</html>

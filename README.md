@@ -27,12 +27,13 @@ POST /api/wiki/sources/upload
   -> init 工作流执行整体验收
 
 POST /api/wiki/chat
-  -> 加载只读问答提示词和有限轮次的会话上下文
+  -> 加载只读问答提示词和 LangGraph Checkpointer 会话状态
+  -> 通过 LangChain Event Streaming v3 持续返回 Markdown 文本片段
   -> quickstart -> 根 index -> 目录 index -> Wiki 文档页
   -> Wiki 缺失、含糊、冲突或用户要求核对原文时才回读 company-handbook
   -> 返回有依据的回答、Wiki 页面路径和必要的原文路径
 
-GET /api/wiki/update/changes
+POST /api/wiki/update/changes
   -> 对 company-handbook 文件计算 SHA-256
   -> 与上次成功 init/update 的资料基线比较
   -> 返回新增、修改、删除文件，不改动 Wiki
@@ -55,14 +56,25 @@ Agent 只能把内容写进
 ## 代码结构
 
 - `app/api/schema.py`：统一的 Pydantic 数据模型；
+- `app/api/handlers/`：认证、聊天和 Wiki 接口的 HTTP 处理逻辑；
+- `app/api/router.py`：只声明路由、请求参数、响应模型和权限依赖；
+- `app/workflows/auth.py`：JSON 用户配置、登录会话和管理员校验；
+- `app/workflows/permissions.py`：按管理员或部门缓存 Deep Agent 文件权限；
 - `app/config/settings.py`：基于 `BaseSettings` 的 DeepSeek 模型配置；
-- `app/config/runtime.py`：init 工作目录解析和目录校验；
 - `app/prompt/`：系统提示词、模式提示词和模板加载器；
 - `app/tools/`：确定性的 Wiki 校验和索引生成函数；
 - `app/workflows/mineru_parser.py`：MinerU 精准批量解析客户端；
-- `app/workflows/`：异步资料处理、Middleware、Agent 工厂和 init 工作流；
-- `app/api/router.py`：FastAPI 路由；
-- `app/main.py`：FastAPI 应用入口。
+- `app/workflows/chat.py`：部门 Agent 缓存、Checkpointer 和事件流；
+- `app/workflows/`：资料处理、Middleware、Agent 工厂和 Wiki 工作流；
+- `app/main.py`：FastAPI 应用和三个前端页面入口；
+- `app/frontend/index.html`：登录页；
+- `app/frontend/admin.html`：管理员控制台；
+- `app/frontend/chat.html`：普通用户聊天页；
+- `app/frontend/js/api.js`：普通 API 请求和 POST SSE 流读取；
+- `app/frontend/js/auth.js`：页面身份校验、角色跳转和退出；
+- `app/frontend/js/admin-page.js`：管理员上传、状态和增量更新；
+- `app/frontend/js/chat.js`：聊天交互和 Checkpointer 会话 ID；
+- `app/frontend/js/markdown.js`：安全的实时 Markdown 渲染。
 
 ## 环境准备
 
@@ -75,6 +87,16 @@ Copy-Item .env.example .env
 
 `uv` 会自动创建项目内的 `.venv`，不需要手工激活。然后编辑 `.env`，只替换
 `DEEPSEEK_API_KEY`。真实密钥不会提交到仓库，Agent 的文件权限也禁止读取它。
+
+首次运行还需要创建本地用户与部门配置：
+
+```powershell
+Copy-Item access-control.example.json data\access-control.json
+```
+
+`data/access-control.json` 保存用户、明文原型密码、部门和部门可读路径；`data/`
+已被 Git 忽略。当前示例提供五个部门账号和一个管理员账号，均使用演示密码 `234`。
+该明文方案仅用于当前原型，不能直接用于公网生产环境。
 
 同时确认 `WIKI_PROJECT_ROOT` 指向包含 `company-handbook/` 的项目根目录。若资料
 包包含 PDF、Word、Excel、PPT 或图片，还必须配置：
@@ -103,14 +125,17 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 启动后：
 
-- 测试控制台：`http://127.0.0.1:8000/`
-- 健康检查：`GET http://127.0.0.1:8000/api/health`
+- 登录页：`http://127.0.0.1:8000/`
+- 管理员控制台：`http://127.0.0.1:8000/admin`
+- 普通用户聊天页：`http://127.0.0.1:8000/chat`
 - 接口文档：`http://127.0.0.1:8000/docs`
+- 登录：`POST http://127.0.0.1:8000/api/auth/login`
+- 当前用户：`POST http://127.0.0.1:8000/api/auth/me`
+- Wiki 状态：`POST http://127.0.0.1:8000/api/wiki/status`
 - 上传并生成 Wiki：`POST http://127.0.0.1:8000/api/wiki/sources/upload`
-- 预览资料变化：`GET http://127.0.0.1:8000/api/wiki/update/changes`
+- 预览资料变化：`POST http://127.0.0.1:8000/api/wiki/update/changes`
 - Wiki 增量更新：`POST http://127.0.0.1:8000/api/wiki/update`
 - 公司问答：`POST http://127.0.0.1:8000/api/wiki/chat`
-- 清空会话：`DELETE http://127.0.0.1:8000/api/wiki/chat/{conversation_id}`
 
 ## Docker 部署
 
@@ -127,18 +152,19 @@ docker compose up -d --build
 
 ```text
 data/
+  access-control.json     # 本地用户、部门和只读路径配置
   company-handbook/       # 管理员上传并转换后的可读资料
   generated-wiki/         # 生成的 Wiki、索引和资料变更基线
   wiki-instructions.md    # 可选的管理员 Wiki 说明
 ```
 
 `./data` 必须定期备份；删除容器或重新构建镜像不会删除这个目录。公网部署时请在
-容器前配置 HTTPS 反向代理和身份认证，当前应用本身尚未提供员工登录功能。
+容器前配置 HTTPS 反向代理，并把 `AUTH_COOKIE_SECURE` 设为 `true`。
 
 常用 Docker 命令：
 
 ```powershell
-docker compose ps       # 查看运行和健康状态
+docker compose ps       # 查看运行状态
 docker compose logs -f  # 查看服务日志
 docker compose down     # 停止并删除容器，不删除 ./data
 ```
@@ -194,22 +220,10 @@ generated-wiki/drafts/
 Front Matter 中记录唯一 `source_path` 和 `source_sha256`，因此 update 可以
 精确定位页面，不需要让模型猜影响范围。
 
-## 调用 init 接口
+## 初始化 Wiki
 
-确认资料状态为 `ready` 后执行初始化：
-
-```powershell
-$body = @{
-  scope = "全部公司资料"
-  message = "财务制度优先突出报销时间、审批流程和票据要求"
-} | ConvertTo-Json
-
-Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8000/api/wiki/init" `
-  -Method Post `
-  -ContentType "application/json" `
-  -Body $body
-```
+管理员上传公司资料 ZIP 后，系统会自动转换资料并初始化 Wiki，不再需要额外提供
+处理范围或补充要求。
 
 草稿位于 `generated-wiki/drafts/`。接口响应中的 `validation.valid: true` 只代表
 格式、来源路径、内部链接和重复标题等机械规则通过，不代替人工核对制度内容。
@@ -224,7 +238,8 @@ Invoke-RestMethod `
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8000/api/wiki/update/changes"
+  -Uri "http://127.0.0.1:8000/api/wiki/update/changes" `
+  -Method Post
 ```
 
 确认 `added`、`modified` 和 `deleted` 清单后执行更新：
@@ -258,33 +273,34 @@ $body = @{
   question = "公司报销日是哪几天？"
 } | ConvertTo-Json
 
-$result = Invoke-RestMethod `
-  -Uri "http://127.0.0.1:8000/api/wiki/chat" `
-  -Method Post `
-  -ContentType "application/json; charset=utf-8" `
-  -Body $body
+$body | curl.exe -N `
+  -X POST "http://127.0.0.1:8000/api/wiki/chat" `
+  -H "Content-Type: application/json; charset=utf-8" `
+  -b cookies.txt `
+  --data-binary "@-"
 ```
 
-响应包含 `answer`、`sources` 和 `conversation_id`。继续追问时，把同一个
+接口返回 `text/event-stream` 流。首个 `start` 事件包含 `conversation_id`，随后持续
+发送 `delta` Markdown 文本片段，最后的 `done` 事件包含 `sources`。继续追问时，把同一个
 `conversation_id` 带回请求体：
 
 ```powershell
 $followUp = @{
   question = "审批流程呢？"
-  conversation_id = $result.conversation_id
+  conversation_id = "从 start 事件取得的 conversation_id"
 } | ConvertTo-Json
 ```
 
-问答 Agent 只有读取权限，并严格采用 Wiki-first：先通过 quickstart 和递归索引
-定位一源一页的 Wiki 文档；只有 Wiki 缺失、含糊、冲突、信息不足，或用户明确要求
-核对原文时，才读取页面记录的 `company-handbook/` 来源。只要资料有待 update 或
-Wiki 校验失败，Chat 会拒绝回答，避免用过期页面。当前会话只保存在单个 API 进程
-的内存中，服务重启后会丢失；生产部署时应改用 Redis 或数据库，并在接口前增加
-登录和访问控制。
+普通员工的问答 Agent 只有所属部门的读取权限，并直接从授权部门目录检索；管理员
+可以访问全局索引和管理接口。只有 Wiki 缺失、含糊、冲突、信息不足，或用户明确
+要求核对原文时，Agent 才读取授权范围内的 `company-handbook/` 来源。只要资料有待
+update 或 Wiki 校验失败，Chat 会拒绝回答，避免用过期页面。当前使用 LangGraph
+`InMemorySaver` 保存会话 checkpoint，数据仍只存在于单个 API 进程内，服务重启后
+会丢失；生产部署时应改用持久化 Checkpointer。
 
 ## 尚未实现
 
 - 草稿审核、发布和回滚；
-- 登录、权限和企业微信接入；
+- 企业微信/LDAP 单点登录与部门同步；
 - 上传任务的数据库持久化和多进程调度；
 - MinerU 解析失败后的单文件重试和人工跳过。

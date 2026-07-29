@@ -99,4 +99,28 @@ class Settings(BaseSettings):
         validation_alias="WIKI_PROJECT_ROOT",
         description="公司 Wiki 项目根目录",
     )
+    access_control_file: Path = Field(
+        default=Path("data/access-control.json"),
+        validation_alias="ACCESS_CONTROL_FILE",
+        description="用户、部门和访问路径 JSON 配置",
+    )
+    auth_cookie_name: str = Field(
+        default="cr_wiki_session",
+        validation_alias="AUTH_COOKIE_NAME",
+        description="登录会话 Cookie 名称",
+    )
+    auth_session_ttl_seconds: int = Field(
+        default=28800,
+        ge=300,
+        le=604800,
+        validation_alias="AUTH_SESSION_TTL_SECONDS",
+        description="登录会话有效期（秒）",
+    )
+    auth_cookie_secure: bool = Field(
+        default=False,
+        validation_alias="AUTH_COOKIE_SECURE",
+        description="是否仅通过 HTTPS 发送登录 Cookie",
+    )
+
+
 settings = Settings()

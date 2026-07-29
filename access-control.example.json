@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "departments": [
+    {
+      "code": "finance",
+      "name": "1.财务类",
+      "read_paths": [
+        "/company-handbook/公司管理制度/1.财务类",
+        "/company-handbook/公司管理制度/1.财务类/**",
+        "/generated-wiki/drafts/公司管理制度/1.财务类",
+        "/generated-wiki/drafts/公司管理制度/1.财务类/**"
+      ]
+    },
+    {
+      "code": "hr",
+      "name": "2.人事类",
+      "read_paths": [
+        "/company-handbook/公司管理制度/2.人事类",
+        "/company-handbook/公司管理制度/2.人事类/**",
+        "/generated-wiki/drafts/公司管理制度/2.人事类",
+        "/generated-wiki/drafts/公司管理制度/2.人事类/**"
+      ]
+    },
+    {
+      "code": "general_office",
+      "name": "3.总经办",
+      "read_paths": [
+        "/company-handbook/公司管理制度/3.总经办",
+        "/company-handbook/公司管理制度/3.总经办/**",
+        "/generated-wiki/drafts/公司管理制度/3.总经办",
+        "/generated-wiki/drafts/公司管理制度/3.总经办/**"
+      ]
+    },
+    {
+      "code": "project",
+      "name": "4.项目部",
+      "read_paths": [
+        "/company-handbook/公司管理制度/4.项目部",
+        "/company-handbook/公司管理制度/4.项目部/**",
+        "/generated-wiki/drafts/公司管理制度/4.项目部",
+        "/generated-wiki/drafts/公司管理制度/4.项目部/**"
+      ]
+    },
+    {
+      "code": "patent",
+      "name": "5.专利部",
+      "read_paths": [
+        "/company-handbook/公司管理制度/5.专利部",
+        "/company-handbook/公司管理制度/5.专利部/**",
+        "/generated-wiki/drafts/公司管理制度/5.专利部",
+        "/generated-wiki/drafts/公司管理制度/5.专利部/**"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "user_admin_demo",
+      "username": "admin_demo",
+      "password": "234",
+      "department_code": "general_office",
+      "role": "admin",
+      "is_active": true
+    },
+    {
+      "id": "user_finance_demo",
+      "username": "finance_demo",
+      "password": "234",
+      "department_code": "finance",
+      "role": "employee",
+      "is_active": true
+    },
+    {
+      "id": "user_hr_demo",
+      "username": "hr_demo",
+      "password": "234",
+      "department_code": "hr",
+      "role": "employee",
+      "is_active": true
+    },
+    {
+      "id": "user_general_office_demo",
+      "username": "general_office_demo",
+      "password": "234",
+      "department_code": "general_office",
+      "role": "employee",
+      "is_active": true
+    },
+    {
+      "id": "user_project_demo",
+      "username": "project_demo",
+      "password": "234",
+      "department_code": "project",
+      "role": "employee",
+      "is_active": true
+    },
+    {
+      "id": "user_patent_demo",
+      "username": "patent_demo",
+      "password": "234",
+      "department_code": "patent",
+      "role": "employee",
+      "is_active": true
+    }
+  ]
+}

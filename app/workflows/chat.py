@@ -3,110 +3,127 @@
 from __future__ import annotations
 
 import re
-from threading import Lock
+from collections.abc import AsyncIterator
 from typing import Any
 from uuid import uuid4
 
-from app.api.schema import ChatResponse, ChatTurn, WorkflowContext
+from langgraph.checkpoint.memory import InMemorySaver
+
+from app.api.schema import AuthenticatedUserContext, WorkflowContext
 from app.prompt.loader import create_chat_user_prompt
 from app.workflows.agent_factory import create_chat_agent
+from app.workflows.auth import department_for
+from app.workflows.permissions import get_chat_permissions
 
 
-_CONVERSATION_LOCK = Lock()
-_CONVERSATIONS: dict[str, list[ChatTurn]] = {}
-_MAX_RETAINED_TURNS = 12
+_CHAT_CHECKPOINTER = InMemorySaver()
+_CHAT_AGENT_CACHE: dict[tuple[str, str, str], Any] = {}
 _SOURCE_PATTERN = re.compile(
     r"`/?((?:generated-wiki/drafts|company-handbook)/[^`\r\n]+)`",
     flags=re.IGNORECASE,
 )
 
 
-class ChatSourceNotReadyError(RuntimeError):
-    """Raised when chat is requested before company sources are installed."""
-
-
-class ChatWikiNotInitializedError(RuntimeError):
-    """Raised when Wiki-first chat is requested before a valid Wiki entry exists."""
-
-
-class ChatExecutionError(RuntimeError):
-    """Raised when the chat Agent cannot complete a grounded answer."""
-
-
-def run_chat(
+async def stream_chat(
     context: WorkflowContext,
     *,
     question: str,
     conversation_id: str | None,
-) -> ChatResponse:
-    """Run one grounded question and retain bounded conversational context."""
+    user: AuthenticatedUserContext,
+) -> tuple[str, AsyncIterator[dict[str, Any]]]:
+    """Stream one checkpointed answer as text deltas and a final source event."""
 
-    if not (context.project_root / "company-handbook").is_dir():
-        raise ChatSourceNotReadyError(
-            "公司资料尚未处理完成，暂时不能进行知识库问答。"
-        )
-    quickstart = (
-        context.project_root.resolve()
-        / "generated-wiki"
-        / "drafts"
-        / "quickstart.md"
-    )
-    root_index = quickstart.with_name("index.md")
-    if not quickstart.is_file() or not root_index.is_file():
-        raise ChatWikiNotInitializedError(
-            "Wiki 尚未初始化完成，请上传资料包并生成知识库。"
-        )
     resolved_id = conversation_id or uuid4().hex
-    with _CONVERSATION_LOCK:
-        history = list(_CONVERSATIONS.get(resolved_id, []))
+    config = _thread_config(user, resolved_id)
+    agent = _get_chat_agent(context, user)
     messages = [
-        {"role": turn.role, "content": turn.content}
-        for turn in history
-    ]
-    messages.append(
         {
             "role": "user",
             "content": create_chat_user_prompt(question),
         }
+    ]
+
+    async def events() -> AsyncIterator[dict[str, Any]]:
+        answer_parts: list[str] = []
+        try:
+            stream = await agent.astream_events(
+                {"messages": messages},
+                config=config,
+                version="v3",
+            )
+            async with stream:
+                async for message in stream.messages:
+                    async for delta in message.text:
+                        if delta:
+                            answer_parts.append(delta)
+                            yield {"type": "delta", "content": delta}
+        except Exception:
+            yield {
+                "type": "error",
+                "detail": "知识库问答 Agent 执行失败。",
+            }
+            return
+
+        answer = "".join(answer_parts).strip()
+        if not answer:
+            yield {
+                "type": "error",
+                "detail": "知识库问答 Agent 没有返回有效回答。",
+            }
+            return
+        sources = list(dict.fromkeys(_SOURCE_PATTERN.findall(answer)))
+        yield {"type": "done", "sources": sources}
+
+    return resolved_id, events()
+
+
+def _thread_config(
+    user: AuthenticatedUserContext,
+    conversation_id: str,
+) -> dict[str, dict[str, str]]:
+    access_scope = (
+        "admin"
+        if user.role == "admin"
+        else user.department_code
     )
 
-    try:
-        result = create_chat_agent(context).invoke({"messages": messages})
-    except ValueError:
-        raise
-    except Exception as exc:
-        raise ChatExecutionError("知识库问答 Agent 执行失败。") from exc
+    return {
+        "configurable": {
+            "thread_id": (
+                f"{user.user_id}:{access_scope}:{conversation_id}"
+            ),
+        }
+    }
 
-    answer = _final_message_text(result).strip()
-    if not answer:
-        raise ChatExecutionError("知识库问答 Agent 没有返回有效回答。")
-    sources = list(dict.fromkeys(_SOURCE_PATTERN.findall(answer)))
 
-    retained = [
-        *history,
-        ChatTurn(role="user", content=question.strip()),
-        ChatTurn(role="assistant", content=answer),
-    ][-_MAX_RETAINED_TURNS:]
-    with _CONVERSATION_LOCK:
-        _CONVERSATIONS[resolved_id] = retained
-
-    return ChatResponse(
-        conversation_id=resolved_id,
-        answer=answer,
-        sources=sources,
+def _get_chat_agent(
+    context: WorkflowContext,
+    user: AuthenticatedUserContext,
+) -> Any:
+    department = department_for(user)
+    scope = "admin" if user.role == "admin" else department.code
+    key = (
+        str(context.project_root.resolve()),
+        user.config_revision,
+        scope,
     )
-
-
-def clear_chat(conversation_id: str) -> bool:
-    """Forget one in-memory conversation and return whether it existed."""
-
-    with _CONVERSATION_LOCK:
-        return _CONVERSATIONS.pop(conversation_id, None) is not None
-
-
-def _final_message_text(result: Any) -> str:
-    messages = result.get("messages", []) if isinstance(result, dict) else []
-    if not messages:
-        return str(result)
-    content = getattr(messages[-1], "content", "")
-    return content if isinstance(content, str) else str(content)
+    cached = _CHAT_AGENT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    permissions = get_chat_permissions(user, department)
+    agent = create_chat_agent(
+        context,
+        checkpointer=_CHAT_CHECKPOINTER,
+        permissions=permissions,
+        user=user,
+        department=department,
+    )
+    stale = [
+        item
+        for item in _CHAT_AGENT_CACHE
+        if item[1] != user.config_revision
+    ]
+    for item in stale:
+        _CHAT_AGENT_CACHE.pop(item, None)
+    _CHAT_AGENT_CACHE[key] = agent
+    return agent

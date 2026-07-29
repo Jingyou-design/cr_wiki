@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="创然公司 Wiki 资料上传与初始化测试台"
+    />
+    <title>创然 Wiki · 管理控制台</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260728-2" />
+  </head>
+  <body class="is-admin">
+    <div class="page-shell" id="appShell">
+      <header class="topbar">
+        <a class="brand" href="/admin" aria-label="返回管理控制台">
+          <span class="brand-mark" aria-hidden="true">CR</span>
+          <span>
+            <strong>创然 Wiki</strong>
+            <small id="brandSubtitle">管理控制台</small>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="user-chip" id="userChip"></span>
+          <button class="text-button" id="logoutButton" type="button">
+            退出登录
+          </button>
+          <span class="environment-chip admin-nav-item">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            本地测试环境
+          </span>
+          <a class="text-link admin-nav-item" href="/docs" target="_blank" rel="noreferrer">
+            API 文档
+          </a>
+        </div>
+      </header>
+
+      <main>
+        <section class="admin-status-overview" id="adminStatusSection">
+          <aside class="status-card" aria-live="polite">
+            <div class="status-card-head">
+              <span>当前知识库</span>
+              <button
+                class="icon-button"
+                id="refreshStatusButton"
+                type="button"
+                aria-label="重新检查知识库状态"
+                title="重新检查"
+              >
+                ↻
+              </button>
+            </div>
+            <div class="status-main">
+              <span class="status-orb is-loading" id="statusOrb"></span>
+              <div>
+                <strong id="statusTitle">正在检查</strong>
+                <p id="statusMessage">正在扫描服务器中的 Wiki 文件。</p>
+              </div>
+            </div>
+            <dl class="status-stats">
+              <div>
+                <dt>公司资料</dt>
+                <dd id="sourceFileCount">—</dd>
+              </div>
+              <div>
+                <dt>Wiki 页面</dt>
+                <dd id="wikiPageCount">—</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+
+        <section
+          class="workflow"
+          id="adminUploadSection"
+          aria-label="Wiki 初始化流程"
+        >
+          <article class="step-card" id="uploadCard">
+            <div class="step-heading">
+              <span class="step-number">01</span>
+              <div>
+                <p class="step-label">生成知识库</p>
+                <h2>上传资料并生成 Wiki</h2>
+              </div>
+              <span class="step-state is-locked" id="uploadStepState">
+                检查中
+              </span>
+            </div>
+
+            <div
+              class="drop-zone"
+              id="dropZone"
+              role="button"
+              tabindex="0"
+              aria-label="选择或拖入公司资料 ZIP"
+            >
+              <input
+                id="sourceFile"
+                type="file"
+                accept=".zip,application/zip"
+                hidden
+              />
+              <span class="upload-symbol" aria-hidden="true">↑</span>
+              <strong id="dropTitle">拖入 ZIP，或点击选择文件</strong>
+              <p id="dropHint">
+                支持 PDF、Word、Excel、PPT、图片及常见文本格式
+              </p>
+              <div class="selected-file" id="selectedFile" hidden>
+                <span class="file-type">ZIP</span>
+                <span>
+                  <strong id="selectedFileName"></strong>
+                  <small id="selectedFileSize"></small>
+                </span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <p class="action-note">
+                上传后会自动转换资料并生成 Wiki，可能需要几分钟，请勿重复提交。
+              </p>
+              <button
+                class="primary-button"
+                id="uploadButton"
+                type="button"
+                disabled
+              >
+                <span>上传并生成 Wiki</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </article>
+
+        </section>
+
+        <section class="result-section" id="resultSection" aria-live="polite">
+          <div class="result-heading">
+            <div>
+              <p class="eyebrow">RUN STATUS</p>
+              <h2>运行结果</h2>
+            </div>
+            <span class="result-badge is-idle" id="resultBadge">等待操作</span>
+          </div>
+
+          <div class="empty-result" id="emptyResult">
+            <span aria-hidden="true">⌁</span>
+            <p>上传、更新或问答的执行结果会显示在这里。</p>
+          </div>
+
+          <div class="result-content" id="resultContent" hidden>
+            <div class="result-summary" id="resultSummary"></div>
+            <div class="validation-grid" id="validationGrid" hidden></div>
+            <details class="raw-response">
+              <summary>查看原始 JSON</summary>
+              <pre id="rawResponse"></pre>
+            </details>
+          </div>
+        </section>
+
+        <section
+          class="update-section"
+          id="adminUpdateSection"
+          aria-labelledby="updateTitle"
+        >
+          <div class="update-heading">
+            <div>
+              <p class="eyebrow">INCREMENTAL UPDATE</p>
+              <h2 id="updateTitle">增量更新 Wiki</h2>
+              <p>
+                检测 company-handbook 的内容变化，只维护引用了变更资料的页面。
+              </p>
+            </div>
+            <button
+              class="secondary-button"
+              id="refreshChangesButton"
+              type="button"
+            >
+              检测资料变化
+            </button>
+          </div>
+
+          <div class="update-grid">
+            <div class="change-panel" aria-live="polite">
+              <span class="step-state is-locked" id="updateStepState">
+                尚未检测
+              </span>
+              <strong id="updateChangeTitle">等待检测资料变化</strong>
+              <p id="updateChangeSummary">
+                修改 company-handbook 中的资料后，点击“检测资料变化”。
+              </p>
+              <dl class="change-stats">
+                <div>
+                  <dt>新增</dt>
+                  <dd id="addedCount">—</dd>
+                </div>
+                <div>
+                  <dt>修改</dt>
+                  <dd id="modifiedCount">—</dd>
+                </div>
+                <div>
+                  <dt>删除</dt>
+                  <dd id="deletedCount">—</dd>
+                </div>
+              </dl>
+            </div>
+
+            <form id="updateForm" class="update-form">
+              <label class="field">
+                <span>本次更新要求 <i>可选</i></span>
+                <textarea
+                  id="updateMessage"
+                  maxlength="2000"
+                  rows="4"
+                  placeholder="例如：重点核对被修改制度中的金额、日期和审批流程"
+                ></textarea>
+              </label>
+              <div class="card-actions">
+                <p class="action-note">
+                  无变化时不会调用模型；校验失败会自动恢复更新前草稿。
+                </p>
+                <button
+                  class="primary-button"
+                  id="updateButton"
+                  type="submit"
+                  disabled
+                >
+                  <span>更新受影响页面</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="chat-section" id="chatSection" aria-labelledby="chatTitle">
+          <div class="chat-heading">
+            <div>
+              <p class="eyebrow">KNOWLEDGE CHAT</p>
+              <h2 id="chatTitle">向公司知识库提问</h2>
+              <p>
+                Agent 会先沿目录索引检索 Wiki，必要时核对原文，并列出实际使用的页面。
+              </p>
+            </div>
+          </div>
+
+          <div class="chat-grid">
+            <form id="chatForm" class="chat-form">
+              <label class="field">
+                <span>你的问题</span>
+                <textarea
+                  id="chatQuestion"
+                  maxlength="2000"
+                  rows="1"
+                  placeholder="输入问题，Enter 发送，Shift + Enter 换行"
+                  required
+                  disabled
+                ></textarea>
+              </label>
+              <div class="chat-actions">
+                <button
+                  class="primary-button"
+                  id="chatButton"
+                  type="submit"
+                  disabled
+                >
+                  <span>发送</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="chat-answer" id="chatAnswer" aria-live="polite">
+              <div class="chat-answer-empty" id="chatAnswerEmpty">
+                <div class="chat-empty-card">
+                  <span class="chat-empty-icon" aria-hidden="true">✦</span>
+                  <strong>从公司知识中找到答案</strong>
+                  <p>输入制度、流程或业务问题，回答将在这里实时生成。</p>
+                </div>
+              </div>
+              <div id="chatAnswerContent" hidden>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-source-list" id="chatSourceList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="notice" id="adminNotice">
+          <span class="notice-mark" aria-hidden="true">!</span>
+          <div>
+            <strong>部门访问控制已启用</strong>
+            <p>
+              普通用户的问答 Agent 只能读取所属部门资料；上传和更新仅限管理员。
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <footer id="adminFooter">
+        <span>CR Wiki · Deep Agents Prototype</span>
+      </footer>
+    </div>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+    <script type="module" src="/assets/js/admin-page.js?v=20260728-2"></script>
+  </body>
+</html>

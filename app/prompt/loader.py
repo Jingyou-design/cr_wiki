@@ -36,8 +36,6 @@ def create_user_prompt(
     runtime_root: str,
     *,
     sources_json: str,
-    scope: str | None = None,
-    user_message: str | None = None,
     paths: PromptPaths | None = None,
 ) -> str:
     """Render concrete context for a single init run."""
@@ -49,12 +47,6 @@ def create_user_prompt(
         {
             **_path_values(prompt_paths),
             "runtime_root": runtime_root,
-            "scope": scope.strip() if scope and scope.strip() else "由命令模式和项目说明确定。",
-            "user_message": (
-                user_message.strip()
-                if user_message and user_message.strip()
-                else "无。"
-            ),
             "sources": sources_json,
         },
     )

@@ -16,7 +16,6 @@ from app.api.schema import (
     SourceChangeSet,
     WorkflowContext,
 )
-from app.config.runtime import validate_layout
 from app.prompt.loader import create_update_user_prompt
 from app.tools.wiki_validator import validate_tree
 from app.workflows.agent_factory import create_update_agent
@@ -158,7 +157,6 @@ def _ensure_update_ready(context: WorkflowContext) -> None:
         raise UpdateSourceNotReadyError(
             "公司资料尚未处理完成，暂时不能执行 update。"
         )
-    validate_layout(context)
     draft_root = context.project_root.resolve() / "generated-wiki" / "drafts"
     if not (draft_root / "quickstart.md").is_file():
         raise WikiNotInitializedError(

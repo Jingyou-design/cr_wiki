@@ -3,23 +3,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 
 class WorkflowContext(BaseModel):
     """Filesystem context for one Wiki workflow run."""
-
-    model_config = ConfigDict(frozen=True)
 
     project_root: Path
 
 
 class MinerUConfig(BaseModel):
     """Configuration used by the MinerU document parsing client."""
-
-    model_config = ConfigDict(frozen=True)
 
     api_token: str = Field(repr=False)
     base_url: str
@@ -36,10 +32,7 @@ class MinerUConfig(BaseModel):
 class MinerUDocument(BaseModel):
     """One binary source document submitted to MinerU."""
 
-    model_config = ConfigDict(frozen=True)
-
     source_path: Path
-    original_relative_path: str
     target_relative_path: str
     upload_name: str
     data_id: str
@@ -48,18 +41,72 @@ class MinerUDocument(BaseModel):
 class PromptPaths(BaseModel):
     """Virtual paths exposed by Deep Agents' filesystem backend."""
 
-    model_config = ConfigDict(frozen=True)
-
     source_dir: str = "/company-handbook"
     draft_dir: str = "/generated-wiki/drafts"
     instructions_file: str = "/wiki-instructions.md"
     plan_file: str = "/generated-wiki/_plan.json"
 
 
+class DepartmentConfig(BaseModel):
+    """One department and the virtual paths its employees may read."""
+
+    code: str = Field(min_length=1,max_length=50,pattern=r"^[a-z][a-z0-9_-]*$",)
+    name: str = Field(min_length=1, max_length=100)
+    read_paths: list[str] = Field(default_factory=list)
+
+
+class UserConfig(BaseModel):
+    """One user loaded from the JSON access-control configuration."""
+
+    id: str = Field(min_length=1, max_length=64)
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=256, repr=False)
+    department_code: str = Field(
+        min_length=1,
+        max_length=50,
+        pattern=r"^[a-z][a-z0-9_-]*$",
+    )
+    role: Literal["admin", "employee"] = "employee"
+    is_active: bool = True
+
+
+class AccessControlConfig(BaseModel):
+    """Validated structure of access-control.json."""
+
+    version: Literal[1] = 1
+    departments: list[DepartmentConfig] = Field(default_factory=list)
+    users: list[UserConfig] = Field(default_factory=list)
+
+
+class LoginRequest(BaseModel):
+    """Credentials submitted to create a login session."""
+
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=256, repr=False)
+
+
+class AuthenticatedUserContext(BaseModel):
+    """Password-free identity used by backend authorization."""
+
+    user_id: str
+    username: str
+    department_code: str
+    role: Literal["admin", "employee"]
+    config_revision: str
+
+
+class CurrentUserResponse(BaseModel):
+    """Safe current-user information returned to the frontend."""
+
+    id: str
+    username: str
+    department_code: str
+    role: Literal["admin", "employee"]
+    config_revision: str
+
+
 class ValidationIssue(BaseModel):
     """One deterministic Wiki validation finding."""
-
-    model_config = ConfigDict(frozen=True)
 
     level: str
     code: str
@@ -93,10 +140,6 @@ class ValidationReport(BaseModel):
             ValidationIssue(level=level, code=code, message=message, path=path)
         )
 
-    def to_dict(self) -> dict[str, Any]:
-        return self.model_dump()
-
-
 class InitWikiResponse(BaseModel):
     """Completed Wiki initialization result."""
 
@@ -119,8 +162,6 @@ class WikiStatusResponse(BaseModel):
 class SourceFileFingerprint(BaseModel):
     """Stable content fingerprint for one normalized source file."""
 
-    model_config = ConfigDict(frozen=True)
-
     path: str
     sha256: str
     size: int = Field(ge=0)
@@ -129,37 +170,12 @@ class SourceFileFingerprint(BaseModel):
 class SourceManifest(BaseModel):
     """Persisted source baseline used by the update workflow."""
 
-    model_config = ConfigDict(frozen=True)
-
     version: Literal[1] = 1
     files: list[SourceFileFingerprint] = Field(default_factory=list)
 
 
-class WikiPageMapping(BaseModel):
-    """Deterministic one-to-one mapping from a source file to a Wiki page."""
-
-    model_config = ConfigDict(frozen=True)
-
-    source_path: str
-    source_sha256: str
-    page_path: str
-
-
-class WikiPageChange(BaseModel):
-    """One source change together with its deterministic Wiki page target."""
-
-    model_config = ConfigDict(frozen=True)
-
-    change: Literal["added", "modified", "deleted"]
-    source_path: str
-    page_path: str
-    source_sha256: str | None = None
-
-
 class SourceChangeSet(BaseModel):
     """Source files changed since the last successful init or update."""
-
-    model_config = ConfigDict(frozen=True)
 
     baseline_exists: bool
     added: list[str] = Field(default_factory=list)
@@ -170,12 +186,6 @@ class SourceChangeSet(BaseModel):
     @property
     def has_changes(self) -> bool:
         return bool(self.added or self.modified or self.deleted)
-
-    @computed_field
-    @property
-    def total(self) -> int:
-        return len(self.added) + len(self.modified) + len(self.deleted)
-
 
 class UpdateChangesResponse(BaseModel):
     """Read-only preview of pending normalized-source changes."""
@@ -212,36 +222,3 @@ class ChatRequest(BaseModel):
         max_length=64,
         pattern=r"^[A-Za-z0-9_-]+$",
     )
-
-
-class ChatTurn(BaseModel):
-    """One retained user or assistant message in a chat conversation."""
-
-    model_config = ConfigDict(frozen=True)
-
-    role: Literal["user", "assistant"]
-    content: str
-
-
-class ChatResponse(BaseModel):
-    """Grounded answer returned by the company Wiki chat workflow."""
-
-    status: Literal["completed"] = "completed"
-    conversation_id: str
-    answer: str
-    sources: list[str] = Field(default_factory=list)
-
-
-class ChatResetResponse(BaseModel):
-    """Result of forgetting one in-memory chat conversation."""
-
-    status: Literal["reset"] = "reset"
-    conversation_id: str
-    existed: bool
-
-
-class HealthResponse(BaseModel):
-    """Service health response."""
-
-    status: Literal["ok"] = "ok"
-    service: str = "company-wiki"

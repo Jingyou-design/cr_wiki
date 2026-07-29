@@ -6,7 +6,17 @@ from typing import BinaryIO
 from uuid import uuid4
 from zipfile import BadZipFile, LargeZipFile, ZipFile
 
-from app.api.schema import MinerUConfig,MinerUDocument,WorkflowContext
+from fastapi import UploadFile
+from starlette.concurrency import run_in_threadpool
+
+from app.api.schema import (
+    InitWikiResponse,
+    MinerUConfig,
+    MinerUDocument,
+    WorkflowContext,
+)
+from app.config.settings import settings
+from app.workflows.init_wiki import run_init
 from app.workflows.mineru_parser import parse_documents
 
 
@@ -21,6 +31,27 @@ _AGENT_READABLE_SUFFIXES = {
 
 class InvalidSourceArchiveError(RuntimeError):
     pass
+
+
+async def upload_and_initialize(file: UploadFile) -> InitWikiResponse:
+    """Process one uploaded archive and initialize its Wiki."""
+
+    try:
+        context = WorkflowContext(
+            project_root=settings.wiki_project_root.resolve()
+        )
+        mineru_config = _mineru_config()
+        await run_in_threadpool(
+            process_source_archive,
+            context,
+            filename=file.filename or "",
+            stream=file.file,
+            mineru_config=mineru_config,
+        )
+        return await run_in_threadpool(run_init, context)
+    finally:
+        await file.close()
+
 
 def process_source_archive(
     context: WorkflowContext,
@@ -69,17 +100,30 @@ def process_source_archive(
         shutil.rmtree(processing_root, ignore_errors=True)
 
 
+def _mineru_config() -> MinerUConfig:
+    return MinerUConfig(
+        api_token=settings.mineru_api_token,
+        base_url=settings.mineru_base_url,
+        model_version=settings.mineru_model_version,
+        language=settings.mineru_language,
+        enable_table=settings.mineru_enable_table,
+        enable_formula=settings.mineru_enable_formula,
+        is_ocr=settings.mineru_is_ocr,
+        request_timeout_seconds=settings.mineru_request_timeout_seconds,
+        poll_interval_seconds=settings.mineru_poll_interval_seconds,
+        poll_timeout_seconds=settings.mineru_poll_timeout_seconds,
+    )
+
+
 def _build_mineru_documents(source_root: Path) -> list[MinerUDocument]:
     documents: list[MinerUDocument] = []
     for source in sorted(source_root.rglob("*"), key=lambda path: path.as_posix().casefold()):
         if not source.is_file() or source.suffix.lower() not in _MINERU_SUFFIXES:
             continue
         relative_path = source.relative_to(source_root)
-        relative = relative_path.as_posix()
         documents.append(
             MinerUDocument(
                 source_path=source,
-                original_relative_path=relative,
                 target_relative_path=relative_path.with_suffix(".md").as_posix(),
                 upload_name=f"doc_{uuid4().hex}{source.suffix.lower()}",
                 data_id=f"doc_{uuid4().hex}",
