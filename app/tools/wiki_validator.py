@@ -35,8 +35,14 @@ def validate_page(
     page: str | Path,
     *,
     allow_pending_indexes: bool = False,
+    lightweight: bool = False,
 ) -> ValidationReport:
-    """Validate one generated page without following paths outside the project."""
+    """Validate one generated page without following paths outside the project.
+
+    ``lightweight`` is used after each Agent write. It checks the page boundary,
+    Front Matter, and source identity, while deferring cross-page links and
+    evidence-quality diagnostics until an explicit tree diagnostic.
+    """
 
     root = project_root.resolve()
     draft_root = (root / "generated-wiki" / "drafts").resolve()
@@ -133,21 +139,22 @@ def validate_page(
                 display_path,
             )
 
-    _validate_links(
-        page_path,
-        draft_root,
-        body,
-        display_path,
-        report,
-        allow_pending_indexes=allow_pending_indexes,
-    )
-    if NUMBER_RE.search(body) and "来源依据" not in body:
-        report.add(
-            "warning",
-            "evidence.numbers_without_section",
-            "正文包含数字，但没有“来源依据”章节。",
+    if not lightweight:
+        _validate_links(
+            page_path,
+            draft_root,
+            body,
             display_path,
+            report,
+            allow_pending_indexes=allow_pending_indexes,
         )
+        if NUMBER_RE.search(body) and "来源依据" not in body:
+            report.add(
+                "warning",
+                "evidence.numbers_without_section",
+                "正文包含数字，但没有“来源依据”章节。",
+                display_path,
+            )
     return report
 
 
@@ -271,6 +278,22 @@ def validate_tree(project_root: Path) -> ValidationReport:
     for page_path in pages:
         report.issues.extend(validate_page(root, page_path).issues)
     return report
+
+
+def diagnose_tree(project_root: Path) -> ValidationReport:
+    """Return best-effort tree diagnostics without blocking a workflow."""
+
+    try:
+        return validate_tree(project_root)
+    except Exception as exc:
+        report = ValidationReport()
+        report.add(
+            "warning",
+            "diagnostics.failed",
+            f"未能完成 Wiki 全量诊断：{exc}",
+            "generated-wiki/drafts",
+        )
+        return report
 
 
 def _parse_front_matter(text: str) -> tuple[dict[str, Any], str, str | None]:

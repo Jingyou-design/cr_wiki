@@ -10,7 +10,7 @@
 $update_context
 ```
 
-管理员补充要求：
+管理人员补充要求：
 
 $user_message
 

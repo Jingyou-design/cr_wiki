@@ -84,7 +84,7 @@ def _thread_config(
     access_scope = (
         "admin"
         if user.role == "admin"
-        else user.department_code
+        else f"{user.role}:{user.department_code}"
     )
 
     return {
@@ -101,7 +101,11 @@ def _get_chat_agent(
     user: AuthenticatedUserContext,
 ) -> Any:
     department = department_for(user)
-    scope = "admin" if user.role == "admin" else department.code
+    scope = (
+        "admin"
+        if user.role == "admin"
+        else f"{user.role}:{department.code}"
+    )
     key = (
         str(context.project_root.resolve()),
         user.config_revision,

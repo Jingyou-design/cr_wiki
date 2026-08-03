@@ -15,7 +15,6 @@ from app.workflows.source_manifest import SourceManifestError
 from app.workflows.update_wiki import (
     UpdateExecutionError,
     UpdateSourceNotReadyError,
-    UpdateValidationError,
     WikiNotInitializedError,
     preview_update,
     run_update,
@@ -61,14 +60,6 @@ async def handle_update_wiki(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
-        ) from exc
-    except UpdateValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "message": str(exc),
-                "validation": exc.report.model_dump(),
-            },
         ) from exc
     except ValueError as exc:
         raise HTTPException(

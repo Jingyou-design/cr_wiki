@@ -82,7 +82,7 @@ def authenticate(username: str, password: str) -> AuthenticatedUserContext | Non
     password_matches = hmac.compare_digest(supplied, expected)
     if user is None or not user.is_active or not password_matches:
         return None
-    return _identity(config, revision, user)
+    return _identity(revision, user)
 
 
 def create_session(user_id: str) -> str:
@@ -130,7 +130,7 @@ def get_current_user(
     if user is None or not user.is_active:
         delete_session(session_token)
         _unauthorized()
-    return _identity(config, revision, user)
+    return _identity(revision, user)
 
 
 def require_admin(
@@ -140,6 +140,19 @@ def require_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前账号没有 Wiki 管理权限。",
+        )
+    return user
+
+
+def require_manager(
+    user: Annotated[AuthenticatedUserContext, Depends(get_current_user)],
+) -> AuthenticatedUserContext:
+    """Allow administrators and department managers to maintain the Wiki."""
+
+    if user.role not in {"admin", "manager"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前账号没有 Wiki 增量更新权限。",
         )
     return user
 
@@ -159,15 +172,7 @@ def current_user_response(
 def department_for(
     user: AuthenticatedUserContext,
 ) -> DepartmentConfig:
-    config, revision = load_access_control()
-    if revision != user.config_revision:
-        current = next(
-            (item for item in config.users if item.id == user.user_id),
-            None,
-        )
-        if current is None:
-            raise AccessControlConfigurationError("当前用户已从配置中删除。")
-        user = _identity(config, revision, current)
+    config, _ = load_access_control()
     department = next(
         (
             item
@@ -184,26 +189,13 @@ def department_for(
 
 
 def _identity(
-    config: AccessControlConfig,
     revision: str,
     user: UserConfig,
 ) -> AuthenticatedUserContext:
-    department = next(
-        (
-            item
-            for item in config.departments
-            if item.code == user.department_code
-        ),
-        None,
-    )
-    if department is None:
-        raise AccessControlConfigurationError(
-            f"用户 {user.username} 引用了不存在的部门。"
-        )
     return AuthenticatedUserContext(
         user_id=user.id,
         username=user.username,
-        department_code=department.code,
+        department_code=user.department_code,
         role=user.role,
         config_revision=revision,
     )

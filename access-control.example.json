@@ -2,6 +2,16 @@
   "version": 1,
   "departments": [
     {
+      "code": "admin",
+      "name": "admin",
+      "read_paths": [
+        "/company-handbook",
+        "/company-handbook/**",
+        "/generated-wiki/drafts",
+        "/generated-wiki/drafts/**"
+      ]
+    },
+    {
       "code": "finance",
       "name": "1.财务类",
       "read_paths": [
@@ -57,8 +67,16 @@
       "id": "user_admin_demo",
       "username": "admin_demo",
       "password": "234",
-      "department_code": "general_office",
+      "department_code": "admin",
       "role": "admin",
+      "is_active": true
+    },
+    {
+      "id": "user_manager_demo",
+      "username": "manager_demo",
+      "password": "234",
+      "department_code": "general_office",
+      "role": "manager",
       "is_active": true
     },
     {

@@ -1,9 +1,11 @@
 import { streamChat } from "./api.js?v=20260728-sse";
-import { currentUser } from "./auth.js";
-import { renderMarkdown } from "./markdown.js";
+import { currentUser } from "./auth.js?v=20260730-manager2";
+import { renderMarkdown } from "./markdown.js?v=20260729-book1";
 import { setBusy, showToast } from "./ui.js";
 
-export function createChatController(configRevision) {
+const CHAT_STORAGE_PREFIX = "deepbook-chat:";
+
+export function createChatController({ userId, configRevision }) {
   const elements = {
     answer: document.querySelector("#chatAnswer"),
     answerContent: document.querySelector("#chatAnswerContent"),
@@ -19,7 +21,10 @@ export function createChatController(configRevision) {
     busy: false,
     conversationId: null,
     configRevision,
+    messages: [],
+    sources: [],
   };
+  const storageKey = `${CHAT_STORAGE_PREFIX}${userId}:${configRevision}`;
 
   elements.form.addEventListener("submit", ask);
   elements.question.addEventListener("input", resizeInput);
@@ -29,6 +34,9 @@ export function createChatController(configRevision) {
       elements.form.requestSubmit();
     }
   });
+  removeStaleSessions();
+  restoreSession();
+
   function setReady(ready) {
     state.ready = Boolean(ready);
     elements.question.disabled = !state.ready || state.busy;
@@ -74,23 +82,34 @@ export function createChatController(configRevision) {
     elements.answerEmpty.hidden = true;
     elements.answerContent.hidden = false;
     elements.sources.replaceChildren();
+    state.sources = [];
     appendTurn("user", question);
+    state.messages.push({ role: "user", content: question });
     const answerElement = appendTurn(
       "assistant",
       "正在检索公司资料并组织回答…",
     );
+    const answerMessage = { role: "assistant", content: "" };
+    state.messages.push(answerMessage);
+    saveSession();
     let answer = "";
 
     try {
       await streamChat(payload, (eventData) => {
         if (eventData.type === "start") {
           state.conversationId = eventData.conversation_id;
+          saveSession();
         } else if (eventData.type === "delta") {
           answer += eventData.content;
+          answerMessage.content = answer;
           renderMarkdown(answerElement, answer);
           elements.answer.scrollTop = elements.answer.scrollHeight;
         } else if (eventData.type === "done") {
-          renderSources(eventData.sources);
+          state.sources = Array.isArray(eventData.sources)
+            ? eventData.sources.map(String)
+            : [];
+          renderSources(state.sources);
+          saveSession();
         } else if (eventData.type === "error") {
           throw new Error(eventData.detail || "知识库问答失败。");
         }
@@ -101,10 +120,22 @@ export function createChatController(configRevision) {
       elements.question.value = "";
       resizeInput();
     } catch (error) {
-      answerElement.textContent = error.message;
+      const errorMessage = error.message || "知识库问答失败。";
+      answerMessage.content = answer || errorMessage;
+      if (answer) {
+        renderMarkdown(answerElement, answer);
+      } else {
+        answerElement.textContent = errorMessage;
+      }
+      state.sources = [];
       elements.sources.replaceChildren();
-      showToast(error.message, "error");
+      saveSession();
+      showToast(errorMessage, "error");
     } finally {
+      if (answer) {
+        answerMessage.content = answer;
+        saveSession();
+      }
       state.busy = false;
       setBusy(elements.button, false, "检索中", "发送");
       setReady(state.ready);
@@ -140,9 +171,102 @@ export function createChatController(configRevision) {
     heading.textContent = "本次回答来源";
     elements.sources.append(heading);
     for (const source of sources) {
-      const path = document.createElement("code");
-      path.textContent = source;
-      elements.sources.append(path);
+      const sourcePath = String(source);
+      const normalizedPath = sourcePath
+        .replaceAll("\\", "/");
+      const wikiPath = normalizedPath.replace(
+        /^\/?generated-wiki\/drafts\//,
+        "",
+      );
+      if (wikiPath !== normalizedPath) {
+        const link = document.createElement("a");
+        link.className = "chat-source-link";
+        link.href = `/book?path=${encodeURIComponent(wikiPath)}`;
+        link.textContent = sourcePath;
+        elements.sources.append(link);
+      } else {
+        const path = document.createElement("code");
+        path.textContent = sourcePath;
+        elements.sources.append(path);
+      }
+    }
+  }
+
+  function restoreSession() {
+    let saved;
+    try {
+      saved = JSON.parse(window.sessionStorage.getItem(storageKey) || "null");
+    } catch {
+      try {
+        window.sessionStorage.removeItem(storageKey);
+      } catch {
+        // Ignore browsers that block session storage.
+      }
+      return;
+    }
+    if (
+      !saved
+      || saved.version !== 1
+      || !Array.isArray(saved.messages)
+    ) {
+      return;
+    }
+    state.conversationId =
+      typeof saved.conversationId === "string"
+        ? saved.conversationId
+        : null;
+    state.messages = saved.messages
+      .filter((message) => (
+        (message?.role === "user" || message?.role === "assistant")
+        && typeof message.content === "string"
+        && message.content
+      ))
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+    state.sources = Array.isArray(saved.sources)
+      ? saved.sources.map(String)
+      : [];
+    for (const message of state.messages) {
+      const content = appendTurn(message.role, message.content);
+      if (message.role === "assistant") {
+        renderMarkdown(content, message.content);
+      }
+    }
+    renderSources(state.sources);
+    if (state.messages.length) {
+      elements.answer.scrollTop = elements.answer.scrollHeight;
+    }
+  }
+
+  function saveSession() {
+    try {
+      window.sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          version: 1,
+          conversationId: state.conversationId,
+          messages: state.messages,
+          sources: state.sources,
+        }),
+      );
+    } catch {
+      // Chat remains usable when browser storage is unavailable or full.
+    }
+  }
+
+  function removeStaleSessions() {
+    const userPrefix = `${CHAT_STORAGE_PREFIX}${userId}:`;
+    try {
+      for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+        const key = window.sessionStorage.key(index);
+        if (key?.startsWith(userPrefix) && key !== storageKey) {
+          window.sessionStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // Ignore browsers that block session storage.
     }
   }
 

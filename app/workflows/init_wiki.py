@@ -9,7 +9,7 @@ from typing import Any
 from app.api.schema import InitWikiResponse, WorkflowContext
 
 from app.prompt.loader import create_user_prompt
-from app.tools.wiki_validator import validate_tree
+from app.tools.wiki_validator import diagnose_tree
 from app.workflows.agent_factory import create_init_agent
 from app.workflows.source_manifest import build_source_manifest, save_source_manifest
 
@@ -52,13 +52,12 @@ def run_init(context: WorkflowContext) -> InitWikiResponse:
         if plan_path.is_file():
             plan_path.unlink()
 
-    validation = validate_tree(context.project_root)
-    if validation.valid:
-        try:
-            save_source_manifest(context)
-        except Exception as exc:
-            shutil.rmtree(draft_root, ignore_errors=True)
-            raise WorkflowExecutionError("无法保存 Wiki 资料变更基线。") from exc
+    validation = diagnose_tree(context.project_root)
+    try:
+        save_source_manifest(context)
+    except Exception as exc:
+        shutil.rmtree(draft_root, ignore_errors=True)
+        raise WorkflowExecutionError("无法保存 Wiki 资料变更基线。") from exc
     return InitWikiResponse(
         summary=_final_message_text(result),
         output_dir=draft_root,

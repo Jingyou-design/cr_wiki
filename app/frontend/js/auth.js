@@ -8,18 +8,28 @@ export async function currentUser(options = {}) {
 }
 
 export function routeForUser(user) {
-  return user.role === "admin" ? "/admin" : "/chat";
+  if (user.role === "admin") return "/admin";
+  if (user.role === "manager") return "/manager";
+  return "/chat";
 }
 
-export async function requirePageUser(role) {
+export async function requirePageUser(roles) {
   let user;
   try {
     user = await currentUser();
   } catch {
     return null;
   }
-  if (user.role !== role) {
-    window.location.replace(routeForUser(user));
+  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+  if (!allowedRoles.includes(user.role)) {
+    const target = routeForUser(user);
+    if (window.location.pathname !== target) {
+      window.location.replace(target);
+    } else {
+      console.error(
+        `Role guard rejected ${user.role} on its own route ${target}.`,
+      );
+    }
     return null;
   }
   renderUser(user);
@@ -41,7 +51,22 @@ function bindLogout() {
     try {
       await apiRequest("/api/auth/logout", { method: "POST" });
     } finally {
+      clearStoredChats();
       window.location.replace("/");
     }
   });
+}
+
+function clearStoredChats() {
+  const prefix = "deepbook-chat:";
+  try {
+    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.sessionStorage.key(index);
+      if (key?.startsWith(prefix)) {
+        window.sessionStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Logout must still complete when browser storage is unavailable.
+  }
 }

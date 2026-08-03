@@ -66,7 +66,7 @@ class UserConfig(BaseModel):
         max_length=50,
         pattern=r"^[a-z][a-z0-9_-]*$",
     )
-    role: Literal["admin", "employee"] = "employee"
+    role: Literal["admin", "manager", "employee"] = "employee"
     is_active: bool = True
 
 
@@ -91,7 +91,7 @@ class AuthenticatedUserContext(BaseModel):
     user_id: str
     username: str
     department_code: str
-    role: Literal["admin", "employee"]
+    role: Literal["admin", "manager", "employee"]
     config_revision: str
 
 
@@ -101,7 +101,7 @@ class CurrentUserResponse(BaseModel):
     id: str
     username: str
     department_code: str
-    role: Literal["admin", "employee"]
+    role: Literal["admin", "manager", "employee"]
     config_revision: str
 
 
@@ -222,3 +222,25 @@ class ChatRequest(BaseModel):
         max_length=64,
         pattern=r"^[A-Za-z0-9_-]+$",
     )
+
+
+class WikiTreeNode(BaseModel):
+    """One directory or Markdown page in the readable Wiki tree."""
+
+    name: str
+    type: Literal["directory", "page"]
+    path: str | None = None
+    children: list["WikiTreeNode"] = Field(default_factory=list)
+
+
+class WikiTreeResponse(BaseModel):
+    """Wiki roots visible to the current user."""
+
+    roots: list[WikiTreeNode] = Field(default_factory=list)
+
+
+class WikiPageResponse(BaseModel):
+    """Markdown content of one readable Wiki page."""
+
+    path: str
+    content: str

@@ -12,12 +12,11 @@ from uuid import uuid4
 from app.api.schema import (
     UpdateChangesResponse,
     UpdateWikiResponse,
-    ValidationReport,
     SourceChangeSet,
     WorkflowContext,
 )
 from app.prompt.loader import create_update_user_prompt
-from app.tools.wiki_validator import validate_tree
+from app.tools.wiki_validator import diagnose_tree
 from app.workflows.agent_factory import create_update_agent
 from app.workflows.source_manifest import (
     SourceManifestError,
@@ -37,14 +36,6 @@ class UpdateSourceNotReadyError(RuntimeError):
 
 class UpdateExecutionError(RuntimeError):
     """Raised when the incremental Agent cannot complete safely."""
-
-
-class UpdateValidationError(RuntimeError):
-    """Raised after invalid update output has been rolled back."""
-
-    def __init__(self, message: str, report: ValidationReport) -> None:
-        super().__init__(message)
-        self.report = report
 
 
 def preview_update(context: WorkflowContext) -> UpdateChangesResponse:
@@ -72,7 +63,7 @@ def run_update(
             summary="公司资料与上次成功运行时一致，没有需要更新的 Wiki 页面。",
             output_dir=draft_root,
             changes=changes,
-            validation=validate_tree(context.project_root),
+            validation=diagnose_tree(context.project_root),
         )
 
     current_manifest = build_source_manifest(context)
@@ -105,12 +96,7 @@ def run_update(
         result = agent.invoke(
             {"messages": [{"role": "user", "content": prompt}]}
         )
-        validation = validate_tree(context.project_root)
-        if not validation.valid:
-            raise UpdateValidationError(
-                "增量更新结果未通过整体验收，已经恢复更新前草稿。",
-                validation,
-            )
+        validation = diagnose_tree(context.project_root)
         save_source_manifest(context)
         after = _snapshot_pages(draft_root)
         committed = True
@@ -138,8 +124,6 @@ def run_update(
             ),
             validation=validation,
         )
-    except UpdateValidationError:
-        raise
     except SourceManifestError as exc:
         raise UpdateExecutionError(str(exc)) from exc
     except Exception as exc:

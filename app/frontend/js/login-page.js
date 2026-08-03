@@ -1,5 +1,8 @@
 import { apiRequest } from "./api.js";
-import { currentUser, routeForUser } from "./auth.js";
+import {
+  currentUser,
+  routeForUser,
+} from "./auth.js?v=20260730-manager2";
 
 const form = document.querySelector("#loginForm");
 const username = document.querySelector("#loginUsername");

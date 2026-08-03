@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from deepagents import FilesystemPermission
 from langgraph.types import Checkpointer
 
 from app.api.schema import AuthenticatedUserContext, DepartmentConfig, WorkflowContext
@@ -15,9 +14,8 @@ from app.workflows.validation_middleware import WikiValidationMiddleware
 from deepagents import FilesystemPermission, create_deep_agent
 from deepagents.backends import FilesystemBackend
 
-from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend
-
+from app.prompt.loader import create_update_system_prompt
+from app.tools.wiki_files import create_delete_wiki_page_tool
 from app.prompt.loader import create_chat_system_prompt
 from langchain_deepseek import ChatDeepSeek
 
@@ -88,8 +86,9 @@ def create_chat_agent(
         access_prompt += "- 角色：管理员。\n"
     else:
         allowed = "\n".join(f"  - `{path}`" for path in department.read_paths)
+        role_name = "部门经理" if user.role == "manager" else "普通员工"
         access_prompt += (
-            "- 角色：普通员工，只读。\n"
+            f"- 角色：{role_name}，知识库访问只读。\n"
             "- 不读取全局 quickstart.md 或根 index.md；"
             "直接在以下授权目录内使用 ls、glob、grep 和 read_file：\n"
             f"{allowed}\n"
@@ -104,19 +103,13 @@ def create_chat_agent(
         name=(
             "company-wiki-chat-admin"
             if user.role == "admin"
-            else f"company-wiki-chat-{department.code}"
+            else f"company-wiki-chat-{user.role}-{department.code}"
         ),
     )
 
 
 def create_update_agent(context: WorkflowContext):
     """Create an incremental Wiki maintenance Agent with narrow page deletion."""
-
-    from deepagents import FilesystemPermission, create_deep_agent
-    from deepagents.backends import FilesystemBackend
-
-    from app.prompt.loader import create_update_system_prompt
-    from app.tools.wiki_files import create_delete_wiki_page_tool
 
     backend = FilesystemBackend(root_dir=context.project_root, virtual_mode=True)
     permissions = [
@@ -154,11 +147,6 @@ def create_update_agent(context: WorkflowContext):
 
 def _create_deepseek_model():
 
-    if not settings.deepseek_api_key.strip():
-        raise ValueError(
-            "缺少 DEEPSEEK_API_KEY。请在项目根目录的 .env 中配置，"
-            "不要把真实密钥提交到仓库。"
-        )
     return ChatDeepSeek(
         model=settings.deepseek_model,
         api_key=settings.deepseek_api_key,

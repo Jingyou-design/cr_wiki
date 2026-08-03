@@ -13,7 +13,7 @@ from string import Template
 from app.api.schema import PromptPaths
 
 
-SYSTEM_PROMPT_VERSION = "0.6.0"
+SYSTEM_PROMPT_VERSION = "0.7.0"
 PROMPT_DIR = Path(__file__).parent
 
 

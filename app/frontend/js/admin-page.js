@@ -1,14 +1,15 @@
 import { apiRequest } from "./api.js";
-import { requirePageUser } from "./auth.js";
-import { createChatController } from "./chat.js?v=20260728-2";
+import { requirePageUser } from "./auth.js?v=20260730-manager2";
+import { createChatController } from "./chat.js?v=20260730-manager2";
 import { formatBytes, setBusy, showToast } from "./ui.js";
 
-const user = await requirePageUser("admin");
+const user = await requirePageUser(["admin", "manager"]);
 if (user) {
   initializeAdminPage();
 }
 
 function initializeAdminPage() {
+  const isAdmin = user.role === "admin";
   const state = {
     wikiReady: false,
     selectedFile: null,
@@ -17,6 +18,9 @@ function initializeAdminPage() {
   };
   const elements = {
     addedCount: byId("addedCount"),
+    adminUploadSection: byId("adminUploadSection"),
+    brandLink: byId("managementHomeLink"),
+    brandSubtitle: byId("brandSubtitle"),
     deletedCount: byId("deletedCount"),
     dropHint: byId("dropHint"),
     dropTitle: byId("dropTitle"),
@@ -47,68 +51,91 @@ function initializeAdminPage() {
     uploadStepState: byId("uploadStepState"),
     validationGrid: byId("validationGrid"),
     wikiPageCount: byId("wikiPageCount"),
+    accessNotice: byId("accessNotice"),
   };
-  const chat = createChatController(user.config_revision);
+  configurePageForRole();
+  const chat = createChatController({
+    userId: user.id,
+    configRevision: user.config_revision,
+  });
 
   elements.refreshStatusButton.addEventListener("click", refreshStatus);
   elements.refreshChangesButton.addEventListener("click", refreshChanges);
   elements.updateForm.addEventListener("submit", updateWiki);
-  elements.uploadButton.addEventListener("click", uploadSource);
-  elements.dropZone.addEventListener("click", () => {
-    if (!state.busy && !state.wikiReady) elements.sourceFile.click();
-  });
-  elements.dropZone.addEventListener("keydown", (event) => {
-    if (
-      !state.busy &&
-      !state.wikiReady &&
-      (event.key === "Enter" || event.key === " ")
-    ) {
-      event.preventDefault();
-      elements.sourceFile.click();
+  if (isAdmin) {
+    elements.uploadButton.addEventListener("click", uploadSource);
+    elements.dropZone.addEventListener("click", () => {
+      if (!state.busy && !state.wikiReady) elements.sourceFile.click();
+    });
+    elements.dropZone.addEventListener("keydown", (event) => {
+      if (
+        !state.busy &&
+        !state.wikiReady &&
+        (event.key === "Enter" || event.key === " ")
+      ) {
+        event.preventDefault();
+        elements.sourceFile.click();
+      }
+    });
+    elements.sourceFile.addEventListener("change", (event) => {
+      selectFile(event.target.files?.[0]);
+    });
+    for (const eventName of ["dragenter", "dragover"]) {
+      elements.dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        if (!state.busy && !state.wikiReady) {
+          elements.dropZone.classList.add("is-dragging");
+        }
+      });
     }
-  });
-  elements.sourceFile.addEventListener("change", (event) => {
-    selectFile(event.target.files?.[0]);
-  });
-  for (const eventName of ["dragenter", "dragover"]) {
-    elements.dropZone.addEventListener(eventName, (event) => {
-      event.preventDefault();
+    for (const eventName of ["dragleave", "drop"]) {
+      elements.dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.remove("is-dragging");
+      });
+    }
+    elements.dropZone.addEventListener("drop", (event) => {
       if (!state.busy && !state.wikiReady) {
-        elements.dropZone.classList.add("is-dragging");
+        selectFile(event.dataTransfer?.files?.[0]);
       }
     });
   }
-  for (const eventName of ["dragleave", "drop"]) {
-    elements.dropZone.addEventListener(eventName, (event) => {
-      event.preventDefault();
-      elements.dropZone.classList.remove("is-dragging");
-    });
-  }
-  elements.dropZone.addEventListener("drop", (event) => {
-    if (!state.busy && !state.wikiReady) {
-      selectFile(event.dataTransfer?.files?.[0]);
-    }
-  });
 
   refreshStatus({ quiet: true });
+
+  function configurePageForRole() {
+    if (isAdmin) return;
+    document.title = "DeepBook · 部门管理控制台";
+    document.body.classList.add("is-manager");
+    elements.adminUploadSection.hidden = true;
+    elements.brandLink.href = "/manager";
+    elements.brandLink.setAttribute("aria-label", "返回部门管理控制台");
+    elements.brandSubtitle.textContent = "部门管理控制台";
+    elements.accessNotice.textContent =
+      "部门经理可执行增量检查和更新；问答与资料浏览仅限所属部门。初始化上传仅限管理员。";
+  }
 
   async function refreshStatus({ quiet = false } = {}) {
     elements.refreshStatusButton.disabled = true;
     elements.statusOrb.className = "status-orb is-loading";
     elements.statusTitle.textContent = "正在检查";
-    elements.statusMessage.textContent = "正在扫描服务器中的 Wiki 文件。";
+    elements.statusMessage.textContent = "正在扫描服务器中的 DeepBook 文件。";
     try {
       const data = await apiRequest("/api/wiki/status", { method: "POST" });
       applyStatus(data);
       if (data.initialized) {
         await refreshChanges({ quiet: true });
       } else {
-        showUpdateUnavailable("尚未生成 Wiki，请先上传公司资料包。");
+        showUpdateUnavailable(
+          isAdmin
+            ? "尚未生成 DeepBook，请先上传公司资料包。"
+            : "尚未生成 DeepBook，请联系管理员完成初始化。",
+        );
       }
       return data;
     } catch (error) {
       showStatusError(error.message);
-      showUpdateUnavailable("无法读取当前 Wiki 状态。");
+      showUpdateUnavailable("无法读取当前 DeepBook 状态。");
       if (!quiet) showToast(error.message, "error");
       return null;
     } finally {
@@ -122,35 +149,37 @@ function initializeAdminPage() {
     elements.statusOrb.className =
       `status-orb ${state.wikiReady ? "" : "is-empty"}`;
     elements.statusTitle.textContent =
-      state.wikiReady ? "Wiki 已初始化" : "等待上传资料";
+      state.wikiReady ? "DeepBook 已初始化" : "等待上传资料";
     elements.statusMessage.textContent = data.message;
     elements.sourceFileCount.textContent =
       String(data.source_file_count || 0);
     elements.wikiPageCount.textContent =
       String(data.wiki_page_count || 0);
-    elements.uploadStepState.textContent =
-      state.wikiReady ? "已完成" : "等待资料";
-    elements.uploadStepState.className =
-      `step-state ${state.wikiReady ? "is-ready" : "is-locked"}`;
+    if (isAdmin) {
+      elements.uploadStepState.textContent =
+        state.wikiReady ? "已完成" : "等待资料";
+      elements.uploadStepState.className =
+        `step-state ${state.wikiReady ? "is-ready" : "is-locked"}`;
 
-    const uploadLocked = state.wikiReady || state.busy;
-    elements.dropZone.classList.toggle("is-disabled", uploadLocked);
-    elements.dropZone.setAttribute("aria-disabled", String(uploadLocked));
-    elements.sourceFile.disabled = uploadLocked;
-    elements.uploadButton.disabled =
-      uploadLocked || !state.selectedFile;
+      const uploadLocked = state.wikiReady || state.busy;
+      elements.dropZone.classList.toggle("is-disabled", uploadLocked);
+      elements.dropZone.setAttribute("aria-disabled", String(uploadLocked));
+      elements.sourceFile.disabled = uploadLocked;
+      elements.uploadButton.disabled =
+        uploadLocked || !state.selectedFile;
 
-    if (state.wikiReady) {
-      state.selectedFile = null;
-      elements.sourceFile.value = "";
-      elements.selectedFile.hidden = true;
-      elements.dropTitle.textContent = "当前 Wiki 已存在";
-      elements.dropHint.textContent =
-        "上传功能已锁定，请使用下方的增量更新维护现有知识库。";
-    } else {
-      elements.dropTitle.textContent = "拖入 ZIP，或点击选择文件";
-      elements.dropHint.textContent =
-        "支持 PDF、Word、Excel、PPT、图片及常见文本格式";
+      if (state.wikiReady) {
+        state.selectedFile = null;
+        elements.sourceFile.value = "";
+        elements.selectedFile.hidden = true;
+        elements.dropTitle.textContent = "当前 Wiki 已存在";
+        elements.dropHint.textContent =
+          "上传功能已锁定，请使用下方的增量更新维护现有知识库。";
+      } else {
+        elements.dropTitle.textContent = "拖入 ZIP，或点击选择文件";
+        elements.dropHint.textContent =
+          "支持 PDF、Word、Excel、PPT、图片及常见文本格式";
+      }
     }
   }
 
@@ -162,12 +191,14 @@ function initializeAdminPage() {
     elements.statusMessage.textContent = message;
     elements.sourceFileCount.textContent = "—";
     elements.wikiPageCount.textContent = "—";
-    elements.uploadStepState.textContent = "状态未知";
-    elements.uploadStepState.className = "step-state is-locked";
-    elements.dropZone.classList.add("is-disabled");
-    elements.dropZone.setAttribute("aria-disabled", "true");
-    elements.sourceFile.disabled = true;
-    elements.uploadButton.disabled = true;
+    if (isAdmin) {
+      elements.uploadStepState.textContent = "状态未知";
+      elements.uploadStepState.className = "step-state is-locked";
+      elements.dropZone.classList.add("is-disabled");
+      elements.dropZone.setAttribute("aria-disabled", "true");
+      elements.sourceFile.disabled = true;
+      elements.uploadButton.disabled = true;
+    }
   }
 
   async function refreshChanges({ quiet = false } = {}) {
@@ -294,7 +325,7 @@ function initializeAdminPage() {
   }
 
   async function uploadSource() {
-    if (!state.selectedFile || state.wikiReady || state.busy) return;
+    if (!isAdmin || !state.selectedFile || state.wikiReady || state.busy) return;
     const form = new FormData();
     form.append("file", state.selectedFile);
 
@@ -308,17 +339,23 @@ function initializeAdminPage() {
       });
       setResult(
         "success",
-        data.validation?.valid ? "Wiki 已生成" : "Wiki 已生成，校验未通过",
+        data.validation?.valid ? "Wiki 已生成" : "Wiki 已生成，发现诊断问题",
         data,
         `${data.summary || "生成任务已结束"}\n` +
-          `${data.validation?.valid ? "最终机械校验已经通过。" : "请查看校验问题。"}`,
+          `${
+            data.validation?.valid
+              ? "自动诊断未发现问题。"
+              : "生成结果已保留，请查看非阻断诊断并按需修正。"
+          }`,
       );
       state.selectedFile = null;
       elements.sourceFile.value = "";
       elements.selectedFile.hidden = true;
       showToast(
-        "Wiki 已生成，可以开始问答。",
-        data.validation?.valid ? "success" : "error",
+        data.validation?.valid
+          ? "Wiki 已生成，可以开始问答。"
+          : "Wiki 已生成，同时记录了待检查项。",
+        data.validation?.valid ? "success" : "warning",
       );
       await refreshStatus({ quiet: true });
     } catch (error) {
@@ -377,7 +414,7 @@ function initializeAdminPage() {
     }
     elements.validationGrid.hidden = false;
     const metrics = [
-      ["校验结果", validation.valid ? "通过" : "未通过"],
+      ["诊断结果", validation.valid ? "未发现问题" : "发现问题"],
       ["检查文件", validation.checked_files ?? 0],
       ["错误", validation.errors ?? 0],
       ["警告", validation.warnings ?? 0],

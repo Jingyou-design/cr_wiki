@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from pathlib import Path, PurePosixPath
-import re
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
@@ -13,8 +12,6 @@ from langgraph.types import Command
 
 from app.api.schema import ValidationReport
 from app.tools.index_builder import build_draft_indexes
-from app.tools.quickstart_builder import build_root_quickstart
-from app.tools.wiki_postprocessor import ensure_source_sections
 from app.tools.wiki_validator import validate_page
 
 
@@ -40,7 +37,6 @@ class WikiValidationMiddleware(AgentMiddleware):
     ) -> ToolResult:
         """Run a filesystem tool, then validate the Markdown it changed."""
 
-        request = _normalize_filesystem_request(request, self._project_root)
         page_path = _wiki_page_path(request)
         result = handler(request)
         if page_path is None or not _tool_succeeded(result):
@@ -51,6 +47,7 @@ class WikiValidationMiddleware(AgentMiddleware):
                 self._project_root,
                 page_path,
                 allow_pending_indexes=True,
+                lightweight=True,
             ),
         )
 
@@ -61,7 +58,6 @@ class WikiValidationMiddleware(AgentMiddleware):
     ) -> ToolResult:
         """Async equivalent used when the Agent is invoked asynchronously."""
 
-        request = _normalize_filesystem_request(request, self._project_root)
         page_path = _wiki_page_path(request)
         result = await handler(request)
         if page_path is None or not _tool_succeeded(result):
@@ -72,6 +68,7 @@ class WikiValidationMiddleware(AgentMiddleware):
                 self._project_root,
                 page_path,
                 allow_pending_indexes=True,
+                lightweight=True,
             ),
         )
 
@@ -79,62 +76,13 @@ class WikiValidationMiddleware(AgentMiddleware):
         """Synchronize the deterministic Wiki index after a successful run."""
 
         del state, runtime
-        ensure_source_sections(self._project_root)
         build_draft_indexes(self._project_root)
-        build_root_quickstart(self._project_root)
 
     async def aafter_agent(self, state: Any, runtime: Any) -> None:
         """Async lifecycle equivalent for asynchronously invoked Agents."""
 
         del state, runtime
-        ensure_source_sections(self._project_root)
         build_draft_indexes(self._project_root)
-        build_root_quickstart(self._project_root)
-
-
-def _normalize_filesystem_request(
-    request: ToolCallRequest,
-    project_root: Path,
-) -> ToolCallRequest:
-    """Translate an in-root Windows physical path into a backend virtual path.
-
-    The agent is instructed to use virtual paths, but models occasionally copy a
-    physical Windows path from tool output.  ``FilesystemBackend`` in virtual mode
-    cannot compare an extended-length path (``\\\\?\\...``) with its ordinary root
-    path, even when both refer to the same location.  Keep the backend's boundary
-    checks intact by converting only paths that resolve below ``project_root``.
-    """
-
-    tool_call = request.tool_call
-    args = tool_call.get("args")
-    if not isinstance(args, dict):
-        return request
-    raw_path = args.get("file_path")
-    if not isinstance(raw_path, str):
-        return request
-
-    virtual_path = _project_virtual_path(raw_path, project_root)
-    if virtual_path is None:
-        return request
-    return request.override(
-        tool_call={**tool_call, "args": {**args, "file_path": virtual_path}},
-    )
-
-
-def _project_virtual_path(raw_path: str, project_root: Path) -> str | None:
-    """Return a virtual path when *raw_path* is an absolute in-root path."""
-
-    candidate = raw_path.strip()
-    if candidate.startswith("\\\\?\\"):
-        candidate = candidate[4:]
-    path = Path(candidate)
-    if not path.is_absolute():
-        return None
-    try:
-        relative = path.resolve().relative_to(project_root)
-    except (OSError, ValueError):
-        return None
-    return "/" + relative.as_posix()
 
 
 def _wiki_page_path(request: ToolCallRequest) -> str | None:

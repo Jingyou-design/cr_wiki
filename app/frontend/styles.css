@@ -1666,3 +1666,595 @@ body.is-employee .chat-actions .primary-button {
     transition-duration: 0.01ms !important;
   }
 }
+
+.book-entry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 13px 9px 10px;
+  border: 1px solid rgba(20, 37, 31, 0.1);
+  border-radius: 14px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(29, 55, 45, 0.06);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.book-entry-button:hover {
+  border-color: rgba(31, 118, 87, 0.28);
+  box-shadow: 0 12px 28px rgba(29, 55, 45, 0.1);
+  transform: translateY(-1px);
+}
+
+.book-entry-button > span:nth-child(2) {
+  min-width: 116px;
+}
+
+.book-entry-button strong,
+.book-entry-button small {
+  display: block;
+}
+
+.book-entry-button strong {
+  font-size: 12px;
+}
+
+.book-entry-button small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.book-entry-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-size: 14px;
+}
+
+.chat-source-link {
+  overflow-wrap: anywhere;
+  color: #c9e56a;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 10px;
+  text-decoration-color: rgba(201, 229, 106, 0.42);
+  text-underline-offset: 4px;
+}
+
+.is-book {
+  min-height: 100vh;
+}
+
+.book-shell {
+  width: min(1460px, calc(100% - 40px));
+}
+
+.book-main {
+  padding: 28px 0 40px;
+}
+
+.book-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 22px;
+}
+
+.book-intro .eyebrow {
+  margin-bottom: 7px;
+}
+
+.book-intro h1 {
+  margin: 0;
+  font-family: Georgia, "Songti SC", "SimSun", serif;
+  font-size: clamp(30px, 3.4vw, 46px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.book-intro p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.book-sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.book-layout {
+  display: grid;
+  min-height: 690px;
+  height: calc(100vh - 205px);
+  grid-template-columns: 310px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(20, 37, 31, 0.11);
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 22px 58px rgba(29, 55, 45, 0.09);
+}
+
+.book-sidebar {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  padding: 24px 18px 20px;
+  flex-direction: column;
+  color: #e8f1ed;
+  background:
+    radial-gradient(
+      circle at 8% 0,
+      rgba(82, 162, 124, 0.22),
+      transparent 28%
+    ),
+    linear-gradient(160deg, #10251d, #0b1914);
+}
+
+.book-sidebar-heading {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px;
+}
+
+.book-sidebar-heading span,
+.book-sidebar-heading small {
+  display: block;
+}
+
+.book-sidebar-heading span {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.book-sidebar-heading small {
+  margin-top: 4px;
+  color: #82958c;
+  font-size: 10px;
+}
+
+.book-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 18px 0 14px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  color: #86998f;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.book-search input {
+  width: 100%;
+  height: 42px;
+  border: 0;
+  outline: 0;
+  color: #e8f1ed;
+  background: transparent;
+  font-size: 11px;
+}
+
+.book-search input::placeholder {
+  color: #70847a;
+}
+
+.book-tree {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 3px 3px 30px;
+  scrollbar-color: rgba(255, 255, 255, 0.13) transparent;
+  scrollbar-width: thin;
+}
+
+.book-tree-branch {
+  min-width: 0;
+}
+
+.book-tree-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  margin: 2px 0;
+}
+
+.book-tree-toggle,
+.book-tree-label {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.book-tree-toggle {
+  display: grid;
+  width: 22px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: #789086;
+  font-size: 14px;
+  transition: transform 160ms ease;
+}
+
+.book-tree-toggle[aria-expanded="false"] {
+  transform: rotate(-90deg);
+}
+
+.book-tree-spacer {
+  position: relative;
+  width: 22px;
+}
+
+.book-tree-spacer::after {
+  position: absolute;
+  top: 50%;
+  left: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #526a5f;
+  content: "";
+}
+
+.book-tree-label {
+  min-width: 0;
+  padding: 8px 10px;
+  overflow: hidden;
+  border-radius: 9px;
+  color: #adbbb4;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.book-tree-row.is-directory > .book-tree-label {
+  color: #e2ece7;
+  font-weight: 700;
+}
+
+.book-tree-label:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.book-tree-label.is-active {
+  color: #e9f7c0;
+  background: rgba(201, 229, 106, 0.12);
+}
+
+.book-tree-children {
+  margin-left: 10px;
+  padding-left: 9px;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.book-tree-empty {
+  margin: 20px 5px;
+  padding: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: #82958c;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.book-reader {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)),
+    radial-gradient(circle at top right, var(--green-soft), transparent 36rem);
+}
+
+.book-reader-header {
+  display: flex;
+  min-width: 0;
+  min-height: 66px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.book-breadcrumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.book-breadcrumbs span,
+.book-breadcrumbs strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-breadcrumbs strong {
+  color: var(--ink);
+}
+
+.book-page-state {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.book-document-wrap {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.book-loading {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  align-content: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+.book-loading-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 15px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+.book-loading strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.book-loading p {
+  margin: 7px 0 0;
+  font-size: 10px;
+}
+
+.wiki-document {
+  width: min(900px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 48px 0 80px;
+  color: #34443e;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.wiki-document.markdown-body h1,
+.wiki-document.markdown-body h2,
+.wiki-document.markdown-body h3,
+.wiki-document.markdown-body h4,
+.wiki-document.markdown-body h5,
+.wiki-document.markdown-body h6 {
+  color: var(--ink);
+}
+
+.wiki-document.markdown-body h1 {
+  margin: 0 0 0.8em;
+  font-family: Georgia, "Songti SC", "SimSun", serif;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.wiki-document.markdown-body h2 {
+  margin-top: 2em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid var(--line);
+  font-size: 22px;
+}
+
+.wiki-document.markdown-body h3 {
+  margin-top: 1.7em;
+  font-size: 17px;
+}
+
+.wiki-document.markdown-body h4,
+.wiki-document.markdown-body h5,
+.wiki-document.markdown-body h6 {
+  font-size: 15px;
+}
+
+.wiki-document.markdown-body p,
+.wiki-document.markdown-body ul,
+.wiki-document.markdown-body ol,
+.wiki-document.markdown-body blockquote,
+.wiki-document.markdown-body pre {
+  margin: 1em 0;
+}
+
+.wiki-document.markdown-body blockquote {
+  padding: 12px 16px;
+  border-left: 3px solid var(--green);
+  border-radius: 0 10px 10px 0;
+  color: #5b6e65;
+  background: #f4f8f5;
+}
+
+.wiki-document.markdown-body code {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.wiki-document.markdown-body pre {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e6f0eb;
+  background: #10251d;
+}
+
+.wiki-document.markdown-body pre code {
+  color: inherit;
+  background: transparent;
+}
+
+.wiki-document.markdown-body a {
+  color: var(--green);
+  font-weight: 650;
+}
+
+.wiki-document.markdown-body hr {
+  margin: 2.2em 0;
+  border-color: var(--line);
+}
+
+.markdown-table-wrap {
+  max-width: 100%;
+  margin: 1.25em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88em;
+  line-height: 1.65;
+}
+
+.markdown-body th,
+.markdown-body td {
+  min-width: 110px;
+  padding: 11px 13px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-body th {
+  color: var(--ink);
+  background: #f1f5f2;
+  font-weight: 750;
+}
+
+.markdown-body tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown-body th:last-child,
+.markdown-body td:last-child {
+  border-right: 0;
+}
+
+.chat-answer .markdown-table-wrap {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.chat-answer .markdown-body th,
+.chat-answer .markdown-body td {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.chat-answer .markdown-body th {
+  color: #eef7f2;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 900px) {
+  .book-layout {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .book-sidebar {
+    max-height: 390px;
+  }
+
+  .book-reader {
+    min-height: 660px;
+  }
+
+  .book-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 620px) {
+  .book-shell {
+    width: min(100% - 20px, 1460px);
+  }
+
+  .is-book .topbar-actions {
+    gap: 12px;
+  }
+
+  .is-book .user-chip {
+    display: none;
+  }
+
+  .book-main {
+    padding-top: 20px;
+  }
+
+  .book-sync-chip {
+    white-space: normal;
+  }
+
+  .book-layout {
+    border-radius: 18px;
+  }
+
+  .book-reader-header {
+    padding: 0 18px;
+  }
+
+  .wiki-document {
+    width: min(100% - 36px, 900px);
+    padding-top: 34px;
+  }
+
+  body.is-employee .chat-heading {
+    align-items: stretch;
+  }
+
+  .book-entry-button {
+    width: 100%;
+  }
+}

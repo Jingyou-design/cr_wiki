@@ -1,4 +1,4 @@
-# 创然公司 Wiki（Python 版）
+# DeepBook
 
 这是一个基于 LangChain Deep Agents 的公司 Wiki 生成器。目前实现管理员上传
 公司资料 ZIP、通过 MinerU 将 PDF/Office/图片转换为 Markdown，以及读取
@@ -21,10 +21,10 @@ POST /api/wiki/sources/upload
   -> DeepSeek API
   -> Deep Agent 内置 ls/glob/grep/read_file/write_file/edit_file
   -> 一个源文件生成一个 generated-wiki/drafts/.../*.md
-  -> 根目录只生成一个 quickstart.md
-  -> Middleware 写后自动校验
+  -> Agent 在根目录创建并维护唯一 quickstart.md
+  -> Middleware 写后快速校验路径、Front Matter 和来源身份
   -> Middleware 为根目录和每级资料目录递归生成 index.md
-  -> init 工作流执行整体验收
+  -> 工作流记录非阻断的全树诊断并保存资料基线
 
 POST /api/wiki/chat
   -> 加载只读问答提示词和 LangGraph Checkpointer 会话状态
@@ -41,8 +41,8 @@ POST /api/wiki/update/changes
 POST /api/wiki/update
   -> 把源文件变化直接映射到唯一 Wiki 页面
   -> 新增文件创建页面、修改文件更新页面、删除文件删除页面
-  -> Middleware 自动校验并递归重建各级 index.md
-  -> 整体验收失败自动恢复更新前草稿
+  -> Agent 同步维护 quickstart，Middleware 递归重建各级 index.md
+  -> 仅 Agent 或程序异常时恢复更新前草稿；内容诊断不阻断交付
   -> 成功后原子保存新的资料基线
 ```
 
@@ -58,7 +58,7 @@ Agent 只能把内容写进
 - `app/api/schema.py`：统一的 Pydantic 数据模型；
 - `app/api/handlers/`：认证、聊天和 Wiki 接口的 HTTP 处理逻辑；
 - `app/api/router.py`：只声明路由、请求参数、响应模型和权限依赖；
-- `app/workflows/auth.py`：JSON 用户配置、登录会话和管理员校验；
+- `app/workflows/auth.py`：JSON 用户配置、登录会话和角色校验；
 - `app/workflows/permissions.py`：按管理员或部门缓存 Deep Agent 文件权限；
 - `app/config/settings.py`：基于 `BaseSettings` 的 DeepSeek 模型配置；
 - `app/prompt/`：系统提示词、模式提示词和模板加载器；
@@ -68,11 +68,11 @@ Agent 只能把内容写进
 - `app/workflows/`：资料处理、Middleware、Agent 工厂和 Wiki 工作流；
 - `app/main.py`：FastAPI 应用和三个前端页面入口；
 - `app/frontend/index.html`：登录页；
-- `app/frontend/admin.html`：管理员控制台；
+- `app/frontend/admin.html`：管理员和部门经理共用的管理控制台；
 - `app/frontend/chat.html`：普通用户聊天页；
 - `app/frontend/js/api.js`：普通 API 请求和 POST SSE 流读取；
 - `app/frontend/js/auth.js`：页面身份校验、角色跳转和退出；
-- `app/frontend/js/admin-page.js`：管理员上传、状态和增量更新；
+- `app/frontend/js/admin-page.js`：按角色提供初始化、状态和增量更新；
 - `app/frontend/js/chat.js`：聊天交互和 Checkpointer 会话 ID；
 - `app/frontend/js/markdown.js`：安全的实时 Markdown 渲染。
 
@@ -95,7 +95,9 @@ Copy-Item access-control.example.json data\access-control.json
 ```
 
 `data/access-control.json` 保存用户、明文原型密码、部门和部门可读路径；`data/`
-已被 Git 忽略。当前示例提供五个部门账号和一个管理员账号，均使用演示密码 `234`。
+已被 Git 忽略。当前示例提供五个部门员工账号、一个部门经理账号和一个管理员账号，
+均使用演示密码 `234`。管理员可初始化和更新全局 DeepBook；部门经理可执行增量
+更新，但 Chat 和资料浏览仍受所属部门的 `read_paths` 限制。
 该明文方案仅用于当前原型，不能直接用于公网生产环境。
 
 同时确认 `WIKI_PROJECT_ROOT` 指向包含 `company-handbook/` 的项目根目录。若资料
@@ -127,6 +129,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 - 登录页：`http://127.0.0.1:8000/`
 - 管理员控制台：`http://127.0.0.1:8000/admin`
+- 部门经理控制台：`http://127.0.0.1:8000/manager`
 - 普通用户聊天页：`http://127.0.0.1:8000/chat`
 - 接口文档：`http://127.0.0.1:8000/docs`
 - 登录：`POST http://127.0.0.1:8000/api/auth/login`
@@ -215,8 +218,9 @@ generated-wiki/drafts/
     政策通知.md
 ```
 
-`quickstart.md` 只在 Wiki 根目录存在，用于说明覆盖范围和使用方法。每级
-`index.md` 都由程序生成，只列当前目录的文档和子目录。每个普通 Wiki 页面在
+`quickstart.md` 由 Agent 创建和维护，只在 Wiki 根目录存在，用于说明覆盖范围、
+主要领域、推荐阅读路径和待完善内容。每级 `index.md` 都由程序确定性生成，只列
+当前目录的文档和子目录。每个普通 Wiki 页面在
 Front Matter 中记录唯一 `source_path` 和 `source_sha256`，因此 update 可以
 精确定位页面，不需要让模型猜影响范围。
 
@@ -225,8 +229,9 @@ Front Matter 中记录唯一 `source_path` 和 `source_sha256`，因此 update �
 管理员上传公司资料 ZIP 后，系统会自动转换资料并初始化 Wiki，不再需要额外提供
 处理范围或补充要求。
 
-草稿位于 `generated-wiki/drafts/`。接口响应中的 `validation.valid: true` 只代表
-格式、来源路径、内部链接和重复标题等机械规则通过，不代替人工核对制度内容。
+草稿位于 `generated-wiki/drafts/`。接口响应中的 `validation` 是非阻断诊断；
+即使其中发现内容或链接问题，成功完成的 Agent 结果仍会保留并保存资料基线。
+诊断结果不代替人工核对制度内容。
 
 同一时间只允许执行一个 init。已有任务运行中或草稿已经存在时，接口返回 HTTP 409，避免重复生成和互相覆盖。
 
@@ -257,7 +262,8 @@ Invoke-RestMethod `
 ```
 
 没有内容变化时，接口直接返回 `no_changes`，不会调用模型。更新期间会备份草稿；
-Agent 失败或整体验收不通过时自动恢复，且不会推进资料基线。
+只有 Agent 或程序执行异常时才自动恢复，且不会推进资料基线。全量诊断发现的问题
+随接口结果返回，但不阻断本次更新。
 
 当前 update 检测的是已经放入 `company-handbook/` 的可读资料变化。重新上传完整 ZIP
 会先替换资料包并清空旧 Wiki；随后必须执行 init 重新生成 Wiki，而不是对旧 Wiki
@@ -291,10 +297,11 @@ $followUp = @{
 } | ConvertTo-Json
 ```
 
-普通员工的问答 Agent 只有所属部门的读取权限，并直接从授权部门目录检索；管理员
-可以访问全局索引和管理接口。只有 Wiki 缺失、含糊、冲突、信息不足，或用户明确
-要求核对原文时，Agent 才读取授权范围内的 `company-handbook/` 来源。只要资料有待
-update 或 Wiki 校验失败，Chat 会拒绝回答，避免用过期页面。当前使用 LangGraph
+普通员工和部门经理的问答 Agent 只有所属部门的读取权限，并直接从授权部门目录
+检索；部门经理可以执行增量检查和更新，但不能上传初始化资料；管理员可以访问全局
+索引和全部管理接口。只有 Wiki 缺失、含糊、冲突、信息不足，或用户明确
+要求核对原文时，Agent 才读取授权范围内的 `company-handbook/` 来源。资料有待
+update 时 Chat 会拒绝回答，避免使用过期页面；非阻断诊断项不会单独关闭问答。当前使用 LangGraph
 `InMemorySaver` 保存会话 checkpoint，数据仍只存在于单个 API 进程内，服务重启后
 会丢失；生产部署时应改用持久化 Checkpointer。
 

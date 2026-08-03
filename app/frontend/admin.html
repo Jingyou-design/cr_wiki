@@ -5,18 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="创然公司 Wiki 资料上传与初始化测试台"
+      content="DeepBook 资料上传与初始化测试台"
     />
-    <title>创然 Wiki · 管理控制台</title>
+    <title>DeepBook · 管理控制台</title>
     <link rel="stylesheet" href="/assets/styles.css?v=20260728-2" />
   </head>
   <body class="is-admin">
     <div class="page-shell" id="appShell">
       <header class="topbar">
-        <a class="brand" href="/admin" aria-label="返回管理控制台">
+        <a
+          class="brand"
+          id="managementHomeLink"
+          href="/admin"
+          aria-label="返回管理控制台"
+        >
           <span class="brand-mark" aria-hidden="true">CR</span>
           <span>
-            <strong>创然 Wiki</strong>
+            <strong>DeepBook</strong>
             <small id="brandSubtitle">管理控制台</small>
           </span>
         </a>
@@ -54,7 +59,7 @@
               <span class="status-orb is-loading" id="statusOrb"></span>
               <div>
                 <strong id="statusTitle">正在检查</strong>
-                <p id="statusMessage">正在扫描服务器中的 Wiki 文件。</p>
+                <p id="statusMessage">正在扫描服务器中的 DeepBook 文件。</p>
               </div>
             </div>
             <dl class="status-stats">
@@ -63,7 +68,7 @@
                 <dd id="sourceFileCount">—</dd>
               </div>
               <div>
-                <dt>Wiki 页面</dt>
+                <dt>DeepBook 页面</dt>
                 <dd id="wikiPageCount">—</dd>
               </div>
             </dl>
@@ -73,14 +78,14 @@
         <section
           class="workflow"
           id="adminUploadSection"
-          aria-label="Wiki 初始化流程"
+          aria-label="DeepBook 初始化流程"
         >
           <article class="step-card" id="uploadCard">
             <div class="step-heading">
               <span class="step-number">01</span>
               <div>
                 <p class="step-label">生成知识库</p>
-                <h2>上传资料并生成 Wiki</h2>
+                <h2>上传资料并生成 DeepBook</h2>
               </div>
               <span class="step-state is-locked" id="uploadStepState">
                 检查中
@@ -116,7 +121,7 @@
 
             <div class="card-actions">
               <p class="action-note">
-                上传后会自动转换资料并生成 Wiki，可能需要几分钟，请勿重复提交。
+                上传后会自动转换资料并生成 DeepBook，可能需要几分钟，请勿重复提交。
               </p>
               <button
                 class="primary-button"
@@ -124,7 +129,7 @@
                 type="button"
                 disabled
               >
-                <span>上传并生成 Wiki</span>
+                <span>上传并生成 DeepBook</span>
                 <span class="button-arrow" aria-hidden="true">→</span>
               </button>
             </div>
@@ -164,7 +169,7 @@
           <div class="update-heading">
             <div>
               <p class="eyebrow">INCREMENTAL UPDATE</p>
-              <h2 id="updateTitle">增量更新 Wiki</h2>
+              <h2 id="updateTitle">增量更新 DeepBook</h2>
               <p>
                 检测 company-handbook 的内容变化，只维护引用了变更资料的页面。
               </p>
@@ -215,7 +220,7 @@
               </label>
               <div class="card-actions">
                 <p class="action-note">
-                  无变化时不会调用模型；校验失败会自动恢复更新前草稿。
+                  无变化时不会调用模型；诊断问题会保留在结果中供后续修正。
                 </p>
                 <button
                   class="primary-button"
@@ -237,7 +242,7 @@
               <p class="eyebrow">KNOWLEDGE CHAT</p>
               <h2 id="chatTitle">向公司知识库提问</h2>
               <p>
-                Agent 会先沿目录索引检索 Wiki，必要时核对原文，并列出实际使用的页面。
+                Agent 会先沿目录索引检索 DeepBook，必要时核对原文，并列出实际使用的页面。
               </p>
             </div>
           </div>
@@ -288,19 +293,19 @@
           <span class="notice-mark" aria-hidden="true">!</span>
           <div>
             <strong>部门访问控制已启用</strong>
-            <p>
-              普通用户的问答 Agent 只能读取所属部门资料；上传和更新仅限管理员。
+            <p id="accessNotice">
+              员工和部门经理的问答 Agent 只能读取所属部门资料；初始化仅限管理员。
             </p>
           </div>
         </section>
       </main>
 
       <footer id="adminFooter">
-        <span>CR Wiki · Deep Agents Prototype</span>
+        <span>DeepBook · Deep Agents Prototype</span>
       </footer>
     </div>
 
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
-    <script type="module" src="/assets/js/admin-page.js?v=20260728-2"></script>
+    <script type="module" src="/assets/js/admin-page.js?v=20260730-manager2"></script>
   </body>
 </html>

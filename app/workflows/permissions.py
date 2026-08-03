@@ -39,7 +39,11 @@ def get_chat_permissions(
 ) -> tuple[FilesystemPermission, ...]:
     """Return cached filesystem rules for an admin or department."""
 
-    scope = "admin" if user.role == "admin" else department.code
+    scope = (
+        "admin"
+        if user.role == "admin"
+        else f"{user.role}:{department.code}"
+    )
     key = (user.config_revision, scope)
     with _PERMISSION_LOCK:
         cached = _PERMISSION_CACHE.get(key)
@@ -53,9 +57,14 @@ def get_chat_permissions(
                     mode="deny",
                 ),
                 FilesystemPermission(
-                    operations=["read", "write"],
+                    operations=["read"],
                     paths=["/**"],
                     mode="allow",
+                ),
+                FilesystemPermission(
+                    operations=["write"],
+                    paths=["/**"],
+                    mode="deny",
                 ),
             )
         else:

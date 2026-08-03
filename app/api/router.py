@@ -33,19 +33,24 @@ from app.api.schema import (
     UpdateChangesResponse,
     UpdateWikiRequest,
     UpdateWikiResponse,
+    WikiPageResponse,
     WikiStatusResponse,
+    WikiTreeResponse,
 )
 from app.workflows.auth import (
     get_current_user,
     require_admin,
+    require_manager,
 )
 from app.config.settings import settings
 from app.workflows.source_upload import upload_and_initialize
+from app.workflows.wiki_browser import get_wiki_page, get_wiki_tree
 
 
 router = APIRouter()
 CurrentUser = Annotated[AuthenticatedUserContext, Depends(get_current_user)]
 AdminUser = Annotated[AuthenticatedUserContext, Depends(require_admin)]
+ManagerUser = Annotated[AuthenticatedUserContext, Depends(require_manager)]
 SessionCookie = Annotated[
     str | None,
     Cookie(alias=settings.auth_cookie_name),
@@ -127,12 +132,30 @@ async def chat(
     return await handle_chat(request, user)
 
 
+@router.get(
+    "/wiki/tree",
+    response_model=WikiTreeResponse,
+    tags=["wiki"],
+)
+def wiki_tree(user: CurrentUser) -> WikiTreeResponse:
+    return get_wiki_tree(user)
+
+
+@router.get(
+    "/wiki/page",
+    response_model=WikiPageResponse,
+    tags=["wiki"],
+)
+def wiki_page(path: str, user: CurrentUser) -> WikiPageResponse:
+    return get_wiki_page(path, user)
+
+
 @router.post(
     "/wiki/update/changes",
     response_model=UpdateChangesResponse,
     tags=["wiki"],
 )
-async def update_changes(_user: AdminUser) -> UpdateChangesResponse:
+async def update_changes(_user: ManagerUser) -> UpdateChangesResponse:
     """Preview normalized-source changes without modifying Wiki drafts."""
 
     return await handle_update_changes()
@@ -145,7 +168,7 @@ async def update_changes(_user: AdminUser) -> UpdateChangesResponse:
 )
 async def update_wiki(
     request: UpdateWikiRequest,
-    _user: AdminUser,
+    _user: ManagerUser,
 ) -> UpdateWikiResponse:
     """Update only Wiki pages affected by normalized-source changes."""
 

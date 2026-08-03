@@ -39,8 +39,22 @@ async def admin_page() -> FileResponse:
     return FileResponse(FRONTEND_ROOT / "admin.html")
 
 
+@app.get("/manager", include_in_schema=False)
+async def manager_page() -> FileResponse:
+    """Serve the department manager console."""
+
+    return FileResponse(FRONTEND_ROOT / "admin.html")
+
+
 @app.get("/chat", include_in_schema=False)
 async def chat_page() -> FileResponse:
     """Serve the employee knowledge chat."""
 
     return FileResponse(FRONTEND_ROOT / "chat.html")
+
+
+@app.get("/book", include_in_schema=False)
+async def book_page() -> FileResponse:
+    """Serve the employee Wiki browser."""
+
+    return FileResponse(FRONTEND_ROOT / "book.html")
