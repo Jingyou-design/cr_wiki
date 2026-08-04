@@ -6,6 +6,7 @@ import time
 from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
+from threading import Lock
 from typing import Any
 from zipfile import BadZipFile, ZipFile
 
@@ -16,7 +17,13 @@ from app.api.schema import MinerUConfig, MinerUDocument
 
 _BATCH_SIZE = 50
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
-_RATE_LIMIT_RETRIES = 2
+_REQUEST_INTERVALS = {
+    "submit": 60 / 300,
+    "result": 60 / 1000,
+}
+_NEXT_REQUEST_AT = {key: 0.0 for key in _REQUEST_INTERVALS}
+_REQUEST_LIMIT_LOCK = Lock()
+_RATE_LIMIT_RETRY_DELAYS = (20, 40)
 
 
 class MinerUConfigurationError(RuntimeError):
@@ -95,6 +102,7 @@ def _create_batch(
         client,
         "POST",
         f"{config.base_url.rstrip('/')}/api/v4/file-urls/batch",
+        request_group="submit",
         headers={**headers, "Content-Type": "application/json"},
         json=payload,
     )
@@ -131,6 +139,7 @@ def _wait_for_batch(
                 f"{config.base_url.rstrip('/')}"
                 f"/api/v4/extract-results/batch/{batch_id}"
             ),
+            request_group="result",
             headers=headers,
         )
         data = _api_data(response, "查询 MinerU 批量解析状态")
@@ -223,20 +232,26 @@ def _request_json(
     client: httpx.Client,
     method: str,
     url: str,
+    request_group: str | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     try:
-        for attempt in range(_RATE_LIMIT_RETRIES + 1):
+        for attempt in range(len(_RATE_LIMIT_RETRY_DELAYS) + 1):
+            _wait_for_request_slot(request_group)
             response = client.request(method, url, **kwargs)
             if response.status_code != 429:
                 break
-            if attempt == _RATE_LIMIT_RETRIES:
+            if attempt == len(_RATE_LIMIT_RETRY_DELAYS):
                 raise MinerURateLimitError(
                     "MinerU 请求过于频繁或账户额度不足，请稍后重试。"
                 )
             retry_after = response.headers.get("Retry-After", "")
-            delay = int(retry_after) if retry_after.isdigit() else 2 ** attempt
-            time.sleep(min(delay, 10))
+            delay = (
+                min(int(retry_after), 60)
+                if retry_after.isdigit()
+                else _RATE_LIMIT_RETRY_DELAYS[attempt]
+            )
+            time.sleep(delay)
         response.raise_for_status()
         payload = response.json()
     except MinerURateLimitError:
@@ -246,6 +261,18 @@ def _request_json(
     if not isinstance(payload, dict):
         raise MinerURequestError("MinerU API 返回了无法识别的数据。")
     return payload
+
+
+def _wait_for_request_slot(request_group: str | None) -> None:
+    if request_group is None:
+        return
+    interval = _REQUEST_INTERVALS[request_group]
+    with _REQUEST_LIMIT_LOCK:
+        now = time.monotonic()
+        delay = _NEXT_REQUEST_AT[request_group] - now
+        if delay > 0:
+            time.sleep(delay)
+        _NEXT_REQUEST_AT[request_group] = time.monotonic() + interval
 
 
 def _api_data(payload: dict[str, Any], action: str) -> dict[str, Any]:
