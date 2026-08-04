@@ -212,6 +212,74 @@ class UpdateWikiResponse(BaseModel):
     validation: ValidationReport
 
 
+class ManagerFileNode(BaseModel):
+    """One directory or file visible below a manager's source roots."""
+
+    name: str
+    path: str
+    type: Literal["directory", "file"]
+    size: int | None = Field(default=None, ge=0)
+    children: list["ManagerFileNode"] = Field(default_factory=list)
+
+
+class ManagerFileTreeResponse(BaseModel):
+    """Company source trees visible to the current department manager."""
+
+    roots: list[ManagerFileNode] = Field(default_factory=list)
+
+
+class ManagerFileContentResponse(BaseModel):
+    """UTF-8 text content loaded from one manager-owned source file."""
+
+    path: str
+    content: str
+    size: int = Field(ge=0)
+
+
+class ManagerFileWriteRequest(BaseModel):
+    """Create or replace one manager-owned UTF-8 source file."""
+
+    path: str = Field(min_length=1, max_length=1000)
+    content: str
+
+
+class ManagerFileWriteResponse(BaseModel):
+    """Result of creating or updating one source file."""
+
+    status: Literal["created", "updated"]
+    path: str
+    size: int = Field(ge=0)
+
+
+class ManagerDirectoryCreateRequest(BaseModel):
+    """Create one directory below a manager-owned source root."""
+
+    path: str = Field(min_length=1, max_length=1000)
+
+
+class ManagerDirectoryCreateResponse(BaseModel):
+    """Result of creating one source directory."""
+
+    status: Literal["created"] = "created"
+    path: str
+
+
+class ManagerPathMoveRequest(BaseModel):
+    """Rename or move one manager-owned file or directory."""
+
+    source_path: str = Field(min_length=1, max_length=1000)
+    target_path: str = Field(min_length=1, max_length=1000)
+
+
+class ManagerPathMoveResponse(BaseModel):
+    """Result of renaming or moving one source path."""
+
+    status: Literal["moved"] = "moved"
+    source_path: str
+    target_path: str
+    type: Literal["directory", "file"]
+
+
 class ChatRequest(BaseModel):
     """One employee question with an optional conversation continuation ID."""
 

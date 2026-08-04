@@ -1,6 +1,9 @@
 import { apiRequest } from "./api.js";
 import { requirePageUser } from "./auth.js?v=20260730-manager2";
-import { createChatController } from "./chat.js?v=20260730-manager2";
+import { createChatController } from "./chat.js?v=20260803-chat1";
+import {
+  createManagerFilesController,
+} from "./manager-files.js?v=20260804-files1";
 import { formatBytes, setBusy, showToast } from "./ui.js";
 
 const user = await requirePageUser(["admin", "manager"]);
@@ -56,7 +59,9 @@ function initializeAdminPage() {
   configurePageForRole();
   const chat = createChatController({
     userId: user.id,
-    configRevision: user.config_revision,
+  });
+  createManagerFilesController({
+    onFilesChanged: () => refreshChanges({ quiet: true }),
   });
 
   elements.refreshStatusButton.addEventListener("click", refreshStatus);

@@ -1,11 +1,10 @@
 import { streamChat } from "./api.js?v=20260728-sse";
-import { currentUser } from "./auth.js?v=20260730-manager2";
 import { renderMarkdown } from "./markdown.js?v=20260729-book1";
 import { setBusy, showToast } from "./ui.js";
 
 const CHAT_STORAGE_PREFIX = "deepbook-chat:";
 
-export function createChatController({ userId, configRevision }) {
+export function createChatController({ userId }) {
   const elements = {
     answer: document.querySelector("#chatAnswer"),
     answerContent: document.querySelector("#chatAnswerContent"),
@@ -20,11 +19,10 @@ export function createChatController({ userId, configRevision }) {
     ready: false,
     busy: false,
     conversationId: null,
-    configRevision,
     messages: [],
     sources: [],
   };
-  const storageKey = `${CHAT_STORAGE_PREFIX}${userId}:${configRevision}`;
+  const storageKey = `${CHAT_STORAGE_PREFIX}${userId}`;
 
   elements.form.addEventListener("submit", ask);
   elements.question.addEventListener("input", resizeInput);
@@ -56,22 +54,7 @@ export function createChatController({ userId, configRevision }) {
     if (!question) return;
 
     state.busy = true;
-    setBusy(elements.button, true, "校验中", "发送");
     elements.question.disabled = true;
-    try {
-      const latestUser = await currentUser();
-      if (latestUser.config_revision !== state.configRevision) {
-        showToast("权限配置已更新，正在刷新页面。", "info");
-        window.setTimeout(() => window.location.reload(), 600);
-        return;
-      }
-    } catch (error) {
-      state.busy = false;
-      setBusy(elements.button, false, "校验中", "发送");
-      setReady(state.ready);
-      showToast(error.message, "error");
-      return;
-    }
 
     const payload = { question };
     if (state.conversationId) {
@@ -257,7 +240,7 @@ export function createChatController({ userId, configRevision }) {
   }
 
   function removeStaleSessions() {
-    const userPrefix = `${CHAT_STORAGE_PREFIX}${userId}:`;
+    const userPrefix = `${CHAT_STORAGE_PREFIX}${userId}`;
     try {
       for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
         const key = window.sessionStorage.key(index);

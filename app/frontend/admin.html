@@ -8,7 +8,7 @@
       content="DeepBook 资料上传与初始化测试台"
     />
     <title>DeepBook · 管理控制台</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260728-2" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260804-files1" />
   </head>
   <body class="is-admin">
     <div class="page-shell" id="appShell">
@@ -42,6 +42,27 @@
 
       <main>
         <section class="admin-status-overview" id="adminStatusSection">
+          <article class="manager-files-card" id="managerFilesCard">
+            <div>
+              <p class="eyebrow">SOURCE WORKSPACE</p>
+              <h1>项目文件管理</h1>
+              <p>
+                查看并维护所属部门的 Markdown 资料，保存后可继续执行现有增量更新。
+              </p>
+            </div>
+            <div class="manager-files-card-footer">
+              <span id="managerFilesSummary">尚未读取目录</span>
+              <button
+                class="primary-button"
+                id="openManagerFilesButton"
+                type="button"
+              >
+                <span>打开文件管理</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </article>
+
           <aside class="status-card" aria-live="polite">
             <div class="status-card-head">
               <span>当前知识库</span>
@@ -305,7 +326,136 @@
       </footer>
     </div>
 
+    <dialog
+      class="manager-files-dialog"
+      id="managerFilesDialog"
+      aria-labelledby="managerFilesTitle"
+    >
+      <div class="manager-files-shell">
+        <header class="manager-files-header">
+          <div>
+            <p class="eyebrow">SOURCE WORKSPACE</p>
+            <h2 id="managerFilesTitle">项目文件管理</h2>
+            <p>当前账号只能操作所属部门的资料目录。</p>
+          </div>
+          <button
+            class="dialog-close-button"
+            id="closeManagerFilesButton"
+            type="button"
+            aria-label="关闭文件管理"
+          >
+            ×
+          </button>
+        </header>
+
+        <div class="manager-files-toolbar">
+          <button
+            class="secondary-button"
+            id="refreshManagerFilesButton"
+            type="button"
+          >
+            刷新目录
+          </button>
+          <button
+            class="secondary-button"
+            id="createManagerFileButton"
+            type="button"
+            disabled
+          >
+            新建文件
+          </button>
+          <button
+            class="secondary-button"
+            id="createManagerDirectoryButton"
+            type="button"
+            disabled
+          >
+            新建目录
+          </button>
+          <button
+            class="secondary-button"
+            id="moveManagerPathButton"
+            type="button"
+            disabled
+          >
+            重命名或移动
+          </button>
+          <span class="manager-files-toolbar-status" id="managerFilesToolbarStatus">
+            等待打开
+          </span>
+        </div>
+
+        <form class="manager-file-action" id="managerFileActionForm" hidden>
+          <div>
+            <strong id="managerFileActionTitle"></strong>
+            <small id="managerFileActionBase"></small>
+          </div>
+          <input
+            id="managerFileActionInput"
+            type="text"
+            maxlength="1000"
+            autocomplete="off"
+            required
+          />
+          <button class="secondary-button" id="cancelManagerFileAction" type="button">
+            取消
+          </button>
+          <button class="primary-button compact-button" type="submit">
+            <span>确认</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <div class="manager-files-layout">
+          <aside class="manager-file-tree-panel">
+            <div class="manager-file-tree-heading">
+              <strong>部门资料</strong>
+              <span id="managerFileCount">—</span>
+            </div>
+            <div class="manager-file-tree" id="managerFileTree">
+              <p class="manager-file-empty">打开后读取所属部门目录。</p>
+            </div>
+          </aside>
+
+          <section class="manager-file-editor-panel">
+            <div class="manager-file-editor-empty" id="managerFileEditorEmpty">
+              <span aria-hidden="true">MD</span>
+              <strong>选择一个 Markdown 文件</strong>
+              <p>文件内容将在这里打开，保存后原文件会立即更新。</p>
+            </div>
+
+            <div class="manager-file-editor" id="managerFileEditor" hidden>
+              <div class="manager-file-editor-heading">
+                <div>
+                  <strong id="managerFileName"></strong>
+                  <small id="managerFilePath"></small>
+                </div>
+                <span id="managerFileSize"></span>
+              </div>
+              <textarea
+                id="managerFileContent"
+                aria-label="Markdown 文件内容"
+                spellcheck="false"
+              ></textarea>
+              <div class="manager-file-editor-actions">
+                <span id="managerFileEditStatus">没有未保存修改</span>
+                <button
+                  class="primary-button"
+                  id="saveManagerFileButton"
+                  type="button"
+                  disabled
+                >
+                  <span>保存文件</span>
+                  <span class="button-arrow" aria-hidden="true">→</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
     <div class="toast-region" id="toastRegion" aria-live="polite"></div>
-    <script type="module" src="/assets/js/admin-page.js?v=20260730-manager2"></script>
+    <script type="module" src="/assets/js/admin-page.js?v=20260804-files1"></script>
   </body>
 </html>

@@ -34,7 +34,7 @@ async def stream_chat(
     """Stream one checkpointed answer as text deltas and a final source event."""
 
     resolved_id = conversation_id or uuid4().hex
-    config = _thread_config(user, resolved_id)
+    config = {"configurable": {"thread_id": resolved_id}}
     agent = _get_chat_agent(context, user)
     messages = [
         {
@@ -75,25 +75,6 @@ async def stream_chat(
         yield {"type": "done", "sources": sources}
 
     return resolved_id, events()
-
-
-def _thread_config(
-    user: AuthenticatedUserContext,
-    conversation_id: str,
-) -> dict[str, dict[str, str]]:
-    access_scope = (
-        "admin"
-        if user.role == "admin"
-        else f"{user.role}:{user.department_code}"
-    )
-
-    return {
-        "configurable": {
-            "thread_id": (
-                f"{user.user_id}:{access_scope}:{conversation_id}"
-            ),
-        }
-    }
 
 
 def _get_chat_agent(

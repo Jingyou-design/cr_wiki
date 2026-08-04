@@ -7,6 +7,7 @@ from fastapi import (
     Cookie,
     Depends,
     File,
+    Query,
     Response,
     UploadFile,
     status,
@@ -19,6 +20,13 @@ from app.api.handlers.auth import (
     handle_logout,
 )
 from app.api.handlers.chat import handle_chat
+from app.api.handlers.manager_files import (
+    handle_manager_directory_create,
+    handle_manager_file_content,
+    handle_manager_file_tree,
+    handle_manager_file_write,
+    handle_manager_path_move,
+)
 from app.api.handlers.wiki import (
     handle_update_changes,
     handle_update_wiki,
@@ -30,6 +38,14 @@ from app.api.schema import (
     CurrentUserResponse,
     InitWikiResponse,
     LoginRequest,
+    ManagerDirectoryCreateRequest,
+    ManagerDirectoryCreateResponse,
+    ManagerFileContentResponse,
+    ManagerFileTreeResponse,
+    ManagerFileWriteRequest,
+    ManagerFileWriteResponse,
+    ManagerPathMoveRequest,
+    ManagerPathMoveResponse,
     UpdateChangesResponse,
     UpdateWikiRequest,
     UpdateWikiResponse,
@@ -148,6 +164,76 @@ def wiki_tree(user: CurrentUser) -> WikiTreeResponse:
 )
 def wiki_page(path: str, user: CurrentUser) -> WikiPageResponse:
     return get_wiki_page(path, user)
+
+
+@router.get(
+    "/manager/files/tree",
+    response_model=ManagerFileTreeResponse,
+    tags=["manager-files"],
+)
+async def manager_file_tree(
+    user: ManagerUser,
+) -> ManagerFileTreeResponse:
+    """Scan company source directories authorized for the current manager."""
+
+    return await handle_manager_file_tree(user)
+
+
+@router.get(
+    "/manager/files/content",
+    response_model=ManagerFileContentResponse,
+    tags=["manager-files"],
+)
+async def manager_file_content(
+    path: Annotated[str, Query(min_length=1, max_length=1000)],
+    user: ManagerUser,
+) -> ManagerFileContentResponse:
+    """Read one UTF-8 source file authorized for the current manager."""
+
+    return await handle_manager_file_content(path, user)
+
+
+@router.put(
+    "/manager/files/content",
+    response_model=ManagerFileWriteResponse,
+    tags=["manager-files"],
+)
+async def manager_file_write(
+    request: ManagerFileWriteRequest,
+    user: ManagerUser,
+) -> ManagerFileWriteResponse:
+    """Create or replace one source file authorized for the manager."""
+
+    return await handle_manager_file_write(request, user)
+
+
+@router.post(
+    "/manager/files/directory",
+    response_model=ManagerDirectoryCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["manager-files"],
+)
+async def manager_directory_create(
+    request: ManagerDirectoryCreateRequest,
+    user: ManagerUser,
+) -> ManagerDirectoryCreateResponse:
+    """Create one source directory authorized for the current manager."""
+
+    return await handle_manager_directory_create(request, user)
+
+
+@router.patch(
+    "/manager/files/path",
+    response_model=ManagerPathMoveResponse,
+    tags=["manager-files"],
+)
+async def manager_path_move(
+    request: ManagerPathMoveRequest,
+    user: ManagerUser,
+) -> ManagerPathMoveResponse:
+    """Rename or move one source file or directory."""
+
+    return await handle_manager_path_move(request, user)
 
 
 @router.post(
