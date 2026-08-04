@@ -7,6 +7,7 @@ from fastapi import (
     Cookie,
     Depends,
     File,
+    HTTPException,
     Query,
     Response,
     UploadFile,
@@ -59,7 +60,10 @@ from app.workflows.auth import (
     require_manager,
 )
 from app.config.settings import settings
-from app.workflows.source_upload import upload_and_initialize
+from app.workflows.source_upload import (
+    InvalidSourceArchiveError,
+    upload_and_initialize,
+)
 from app.workflows.wiki_browser import get_wiki_page, get_wiki_tree
 
 
@@ -132,7 +136,13 @@ async def upload_sources(
 ) -> InitWikiResponse:
     """Upload sources, convert them, and initialize Wiki in one request."""
 
-    return await upload_and_initialize(file)
+    try:
+        return await upload_and_initialize(file)
+    except InvalidSourceArchiveError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+from errno import ENAMETOOLONG
 from pathlib import Path
 from typing import BinaryIO
 from uuid import uuid4
@@ -77,7 +78,7 @@ def process_source_archive(
     try:
         extracted_dir.mkdir(parents=True)
         prepared_dir.mkdir()
-        with ZipFile(stream) as archive:
+        with ZipFile(stream, metadata_encoding="gbk") as archive:
             archive.extractall(extracted_dir)
 
         _copy_readable_sources(extracted_dir, prepared_dir)
@@ -96,6 +97,12 @@ def process_source_archive(
         _clear_previous_wiki(root)
     except (BadZipFile, LargeZipFile) as exc:
         raise InvalidSourceArchiveError("ZIP 文件损坏或格式不受支持。") from exc
+    except OSError as exc:
+        if exc.errno == ENAMETOOLONG:
+            message = "ZIP 内存在过长的文件名，请缩短后重新压缩上传。"
+        else:
+            message = "ZIP 文件无法解压，请检查压缩包内容。"
+        raise InvalidSourceArchiveError(message) from exc
     finally:
         shutil.rmtree(processing_root, ignore_errors=True)
 
