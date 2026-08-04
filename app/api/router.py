@@ -60,6 +60,11 @@ from app.workflows.auth import (
     require_manager,
 )
 from app.config.settings import settings
+from app.workflows.mineru_parser import (
+    MinerUConfigurationError,
+    MinerURateLimitError,
+    MinerURequestError,
+)
 from app.workflows.source_upload import (
     InvalidSourceArchiveError,
     upload_and_initialize,
@@ -141,6 +146,21 @@ async def upload_sources(
     except InvalidSourceArchiveError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except MinerURateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+        ) from exc
+    except MinerUConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except MinerURequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
 

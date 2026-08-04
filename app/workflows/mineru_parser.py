@@ -16,12 +16,19 @@ from app.api.schema import MinerUConfig, MinerUDocument
 
 _BATCH_SIZE = 50
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
+_RATE_LIMIT_RETRIES = 2
+
+
 class MinerUConfigurationError(RuntimeError):
     """Raised when MinerU is required but not configured."""
 
 
 class MinerURequestError(RuntimeError):
     """Raised when MinerU rejects or cannot complete a parse request."""
+
+
+class MinerURateLimitError(MinerURequestError):
+    """Raised when MinerU keeps rejecting requests with HTTP 429."""
 
 
 def parse_documents(
@@ -219,9 +226,21 @@ def _request_json(
     **kwargs: Any,
 ) -> dict[str, Any]:
     try:
-        response = client.request(method, url, **kwargs)
+        for attempt in range(_RATE_LIMIT_RETRIES + 1):
+            response = client.request(method, url, **kwargs)
+            if response.status_code != 429:
+                break
+            if attempt == _RATE_LIMIT_RETRIES:
+                raise MinerURateLimitError(
+                    "MinerU 请求过于频繁或账户额度不足，请稍后重试。"
+                )
+            retry_after = response.headers.get("Retry-After", "")
+            delay = int(retry_after) if retry_after.isdigit() else 2 ** attempt
+            time.sleep(min(delay, 10))
         response.raise_for_status()
         payload = response.json()
+    except MinerURateLimitError:
+        raise
     except (httpx.HTTPError, ValueError) as exc:
         raise MinerURequestError("MinerU API 请求失败。") from exc
     if not isinstance(payload, dict):
@@ -244,4 +263,3 @@ def _file_chunks(path: Path) -> Iterator[bytes]:
     with path.open("rb") as stream:
         while chunk := stream.read(_UPLOAD_CHUNK_BYTES):
             yield chunk
-
